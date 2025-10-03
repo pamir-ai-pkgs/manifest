@@ -9,12 +9,12 @@
            sync-j="4"
            sync-c="true" />
 
-  <project name="distiller-cm5-services"
-           path="distiller-cm5-services"
+  <project name="distiller-services"
+           path="distiller-services"
            revision="main" />
 
-  <project name="distiller-cm5-sdk"
-           path="distiller-cm5-sdk"
+  <project name="distiller-sdk"
+           path="distiller-sdk"
            revision="main" />
 
   <project name="distiller-update"
@@ -33,7 +33,7 @@
            path="distiller-cc"
            revision="main" />
 
-  <project name="vibe-code-distiller-ui"
+  <project name="claude-code-web-manager"
            path="claude-code-web-manager"
            revision="main" />
 
