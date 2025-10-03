@@ -34,10 +34,10 @@ mkdir -p ~/pamir-ai
 cd ~/pamir-ai
 
 # Initialize repo with manifest
-repo init -u https://github.com/pamir-ai-pkgs/pamir-ai-manifest -b main
+repo init -u https://github.com/pamir-ai-pkgs/manifest -b main
 
 # Sync all projects
-repo sync -j4
+repo sync -j$(nproc)
 ```
 
 ### Sync to Remote Server
@@ -53,8 +53,8 @@ mkdir -p ~/pamir-ai
 cd ~/pamir-ai
 
 # Initialize and sync
-repo init -u https://github.com/pamir-ai/pamir-ai-manifest -b main
-repo sync -j4
+repo init -u https://github.com/pamir-ai/manifest -b main
+repo sync -j$(nproc)
 ```
 
 ## Common Operations
@@ -63,7 +63,7 @@ repo sync -j4
 
 ```bash
 cd ~/pamir-ai
-repo sync -j4
+repo sync -j$(nproc)
 ```
 
 ### Check Status of All Projects
