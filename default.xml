@@ -6,6 +6,7 @@
 
   <default remote="github"
            revision="main"
+           dest-branch="main"
            sync-j="4"
            sync-c="true" />
 
