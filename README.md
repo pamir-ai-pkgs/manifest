@@ -7,14 +7,9 @@ This repository contains the manifest file for managing all Pamir AI Distiller p
 ### Install Google Repo Tool
 
 ```bash
-# Create bin directory if it doesn't exist
 mkdir -p ~/.local/bin
-
-# Download repo tool
 curl https://storage.googleapis.com/git-repo-downloads/repo > ~/.local/bin/repo
 chmod a+x ~/.local/bin/repo
-
-# Add to PATH (add to ~/.bashrc for persistence)
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
@@ -29,14 +24,9 @@ repo version
 ### Initial Setup
 
 ```bash
-# Create workspace directory
 mkdir -p ~/pamir-ai
 cd ~/pamir-ai
-
-# Initialize repo with manifest
 repo init -u https://github.com/pamir-ai-pkgs/manifest -b main
-
-# Sync all projects
 repo sync -j$(nproc)
 ```
 
@@ -45,14 +35,9 @@ repo sync -j$(nproc)
 On your remote server:
 
 ```bash
-# SSH into remote server
 ssh user@remote-server
-
-# Create workspace
 mkdir -p ~/pamir-ai
 cd ~/pamir-ai
-
-# Initialize and sync
 repo init -u https://github.com/pamir-ai/manifest -b main
 repo sync -j$(nproc)
 ```
@@ -74,21 +59,24 @@ repo status
 
 ### Execute Command Across All Projects
 
+Check git status in all repos:
 ```bash
-# Example: Check git status in all repos
 repo forall -c 'git status'
+```
 
-# Example: Pull latest changes
+Pull latest changes:
+```bash
 repo forall -c 'git pull'
+```
 
-# Example: Check current branch
+Check current branch:
+```bash
 repo forall -c 'echo "$REPO_PROJECT: $(git rev-parse --abbrev-ref HEAD)"'
 ```
 
 ### Update to Specific Branch
 
 ```bash
-# Check out specific branch in all projects
 repo forall -c 'git checkout main'
 ```
 
@@ -109,14 +97,12 @@ mkdir -p .repo/local_manifests
 cat > .repo/local_manifests/custom.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
-  <!-- Override specific project branches -->
   <remove-project name="distiller-cc" />
   <project name="distiller-cc"
            path="distiller-cc"
            revision="main" />
 </manifest>
 EOF
-
 repo sync
 ```
 
@@ -129,7 +115,6 @@ cat > .repo/local_manifests/forks.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
   <remote name="myfork" fetch="https://github.com/YOUR-USERNAME/" />
-
   <remove-project name="distiller-cc" />
   <project name="distiller-cc"
            path="distiller-cc"
@@ -137,7 +122,6 @@ cat > .repo/local_manifests/forks.xml << 'EOF'
            revision="my-feature-branch" />
 </manifest>
 EOF
-
 repo sync
 ```
 
@@ -145,11 +129,13 @@ repo sync
 
 ### Sync Failures
 
+Clean and retry:
 ```bash
-# Clean and retry
 repo sync -j1 --force-sync
+```
 
-# Or manually fix specific project
+Or manually fix specific project:
+```bash
 cd problematic-project
 git fetch --all
 git reset --hard origin/branch-name
@@ -158,7 +144,6 @@ git reset --hard origin/branch-name
 ### Detached HEAD State
 
 ```bash
-# Check out proper branches
 repo forall -c 'git checkout $(git rev-parse --abbrev-ref HEAD)'
 ```
 
@@ -167,7 +152,6 @@ repo forall -c 'git checkout $(git rev-parse --abbrev-ref HEAD)'
 Ensure SSH keys are configured or use HTTPS with credentials:
 
 ```bash
-# Configure Git credentials
 git config --global credential.helper cache
 ```
 
