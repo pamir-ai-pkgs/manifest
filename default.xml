@@ -10,6 +10,10 @@
            sync-j="4"
            sync-c="true" />
 
+  <project name="distiller-genesis"
+           path="distiller-genesis"
+           revision="main" />
+
   <project name="distiller-services"
            path="distiller-services"
            revision="main" />
@@ -20,6 +24,10 @@
 
   <project name="distiller-update"
            path="distiller-update"
+           revision="main" />
+
+  <project name="distiller-platform-update"
+           path="distiller-platform-update"
            revision="main" />
 
   <project name="distiller-telemetry"
@@ -36,6 +44,10 @@
 
   <project name="claude-code-web-manager"
            path="claude-code-web-manager"
+           revision="main" />
+
+  <project name="VS-Code-Extensions"
+           path="VS-Code-Extensions"
            revision="main" />
 
   <project name="pamir-ai-eink-dkms"
