@@ -42,12 +42,24 @@
            path="distiller-cc"
            revision="main" />
 
+  <project name="distiller-ota"
+           path="distiller-ota"
+           revision="main" />
+
+  <project name="distiller-watchdog"
+           path="distiller-watchdog"
+           revision="master" />
+
   <project name="claude-code-web-manager"
            path="claude-code-web-manager"
            revision="main" />
 
   <project name="VS-Code-Extensions"
            path="VS-Code-Extensions"
+           revision="main" />
+
+  <project name="pamir-app"
+           path="pamir-app"
            revision="main" />
 
   <project name="pamir-ai-eink-dkms"
@@ -60,6 +72,10 @@
 
   <project name="pamir-ai-soundcard-dkms"
            path="pamir-ai-soundcard-dkms"
+           revision="main" />
+
+  <project name="pamir-ai-lt7911d-dkms"
+           path="pamir-ai-lt7911d-dkms"
            revision="main" />
 
 </manifest>
