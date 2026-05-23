@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <remote name="github" fetch="https://github.com/pamir-ai-pkgs/" review="https://github.com/pamir-ai-pkgs/" />
+  <default remote="github" revision="main" dest-branch="main" sync-j="4" sync-c="true" />
+
+  <project name="linux-rockchip-device-rockchip" path="device/rockchip" revision="main">
+    <linkfile src="common/scripts/build.sh" dest="build.sh"/>
+    <linkfile src="common/Makefile" dest="Makefile"/>
+    <linkfile src="common/scripts/rkflash.sh" dest="rkflash.sh"/>
+  </project>
+  <project name="linux-rockchip-u-boot" path="u-boot" revision="main"/>
+  <project name="linux-rockchip-kernel" path="kernel-6.1" revision="main">
+    <linkfile src="." dest="kernel"/>
+  </project>
+  <project name="linux-rockchip-recovery" path="external/recovery" revision="main"/>
+  <project name="linux-rockchip-rkwifibt" path="external/rkwifibt" revision="main"/>
+  <project name="linux-rockchip-debian" path="debian" revision="main"/>
+  <project name="linux-rockchip-rkbin" path="rkbin" revision="main"/>
+  <project name="linux-rockchip-tools" path="tools" revision="main"/>
+  <project name="linux-rockchip-bsp-tools" path="bsp-tools" revision="d711cd79600937d15444b2e942891db213ca5bc9"/>
+
+  <repo-hooks in-project="linux-rockchip-bsp-tools" enabled-list="post-sync"/>
+</manifest>
