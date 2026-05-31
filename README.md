@@ -19,6 +19,100 @@ export PATH="$HOME/.local/bin:$PATH"
 repo version
 ```
 
+## RK3576 Linux BSP (`rk3576-debian-ab.xml`)
+
+The `rk3576-debian-ab.xml` manifest builds the Pamir RK3576 BSP: a Debian
+Bookworm arm64 server image with seamless A/B slots, runtime OTA, and a
+Nix-primary userland, produced by the `mkosi` rootfs builder.
+
+### Build-host prerequisites
+
+- **Linux x86_64 host.**
+- **`gh` (GitHub CLI), authenticated.** Most BSP repos are private, and the
+  cross-toolchain and mkosi package pool are fetched from GitHub Releases. Run
+  `gh auth login` (or export `GH_TOKEN`) before syncing.
+- **Build tree on an ext4 / xfs / btrfs / f2fs / zfs filesystem.** The SDK
+  refuses to build from overlayfs, NTFS, or network mounts.
+- **The build user must own the tree** — the SDK enforces this; never build
+  under `sudo`. Fix ownership with
+  `sudo chown -h -R $(id -un):$(id -un) <tree>`.
+- **`python3`, `git`, `rsync`, and standard build tooling** on `PATH`; the SDK's
+  `check-package.sh` reports anything missing on first run.
+
+### Sync
+
+```bash
+mkdir -p ~/pamir-rk3576 && cd ~/pamir-rk3576
+repo init -u https://github.com/pamir-ai-pkgs/manifest -b main -m rk3576-debian-ab.xml
+repo sync -j$(nproc) --verify
+```
+
+`--verify` is **required, not optional**: the `linux-rockchip-bsp-tools`
+post-sync hook only runs non-interactively under `--verify`, and that hook
+fetches the AArch64 cross-toolchain and the mkosi deb package pool from their
+GitHub Releases. Without it `repo sync` still exits 0, but the toolchain and
+`mkosi/packages/` are absent and the build fails. If you already synced without
+it, fetch by hand:
+
+```bash
+bsp-tools/fetch-prebuilts.sh      # cross-toolchain
+mkosi/scripts/fetch-packages.sh   # mkosi deb pool (always latest)
+```
+
+### Build `update.img`
+
+```bash
+./build.sh rockchip_rk3576_lapis_defconfig   # select the Lapis config
+./build.sh                                    # U-Boot + kernel + rootfs + firmware
+```
+
+The flashable image lands at `rockdev/update.img`, with the per-partition images
+(`MiniLoaderAll.bin`, `uboot.img`, `boot.img`, `rootfs.img`, `userdata.img`, …)
+alongside it. To repack just the image after a component rebuild:
+
+```bash
+./build.sh updateimg
+```
+
+### Flash
+
+Put the board into **Maskrom** (or **Loader**/rockusb) mode, connect USB-C, then
+flash the full image:
+
+```bash
+./rkflash.sh update
+```
+
+or with Rockchip's `upgrade_tool` directly:
+
+```bash
+upgrade_tool uf rockdev/update.img
+```
+
+A full `update.img` flash provisions both A/B slots and the userdata partition.
+Run `./rkflash.sh` with no arguments for the partition list and targeted
+single-partition reflashes.
+
+### What you get
+
+- **Seamless A/B** — two rootfs slots (`system_a` / `system_b`) selected by
+  U-Boot via the Android-style `slot_suffix`; OTA writes the inactive slot and
+  flips on a healthy boot.
+- **Runtime OTA** — `lapis-ota` drives `updateEngine` against the A/B slots;
+  mark-success is automatic on a good boot.
+- **Persistence** — `/var`, `/home`, `/root`, NetworkManager state, SSH host
+  keys, machine-id, and the Nix store live in the `userdata` partition and
+  survive slot swaps; the rootfs slots stay reproducible.
+- **Nix-primary userland** — the Nix store sits in `userdata` (outside the A/B
+  pair), bind-mounted at `/nix`; user software is managed through Nix.
+
+### Updating the package pool
+
+The mkosi deb pool is a Release asset on `linux-rockchip-mkosi`, always fetched
+at its latest release — no tag or checksum is pinned anywhere. To ship a new
+pool, rebuild the tarball plus its `.sha256` and upload both to a new Release
+under the same asset names; the next `repo sync --verify` picks it up.
+
 ## Quick Start
 
 ### Initial Setup

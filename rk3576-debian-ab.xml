@@ -14,11 +14,13 @@
   </project>
   <project name="linux-rockchip-recovery" path="external/recovery" revision="main"/>
   <project name="linux-rockchip-rkwifibt" path="external/rkwifibt" revision="main"/>
-  <project name="linux-rockchip-debian" path="debian" revision="main"/>
+  <project name="lapis-ota" path="external/lapis-ota" revision="main"/>
+  <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="main"/>
   <project name="linux-rockchip-rkbin" path="rkbin" revision="main"/>
   <project name="linux-rockchip-tools" path="tools" revision="main"/>
   <project name="linux-rockchip-docs" path="docs" revision="main"/>
-  <project name="linux-rockchip-bsp-tools" path="bsp-tools" revision="4379f67cc0d17c898b8cb993c5b164d0478f0adf"/>
+  <project name="linux-rockchip-mkosi" path="mkosi" revision="main"/>
+  <project name="linux-rockchip-bsp-tools" path="bsp-tools" revision="78f592dc5d321426e7f25a23954e7a6b0469a1d2"/>
 
   <repo-hooks in-project="linux-rockchip-bsp-tools" enabled-list="post-sync"/>
 </manifest>
