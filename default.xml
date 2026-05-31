@@ -1,81 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Pamir RK3576 Linux BSP — default manifest.
+  This repository hosts a single BSP manifest; `repo init` selects it
+  automatically, so no `-m` flag is required.
+-->
 <manifest>
-  <remote name="github"
-          fetch="https://github.com/pamir-ai-pkgs/"
-          review="https://github.com/pamir-ai-pkgs/" />
-
-  <default remote="github"
-           revision="main"
-           dest-branch="main"
-           sync-j="4"
-           sync-c="true" />
-
-  <project name="distiller-genesis"
-           path="distiller-genesis"
-           revision="main" />
-
-  <project name="distiller-services"
-           path="distiller-services"
-           revision="main" />
-
-  <project name="distiller-sdk"
-           path="distiller-sdk"
-           revision="main" />
-
-  <project name="distiller-update"
-           path="distiller-update"
-           revision="main" />
-
-  <project name="distiller-platform-update"
-           path="distiller-platform-update"
-           revision="main" />
-
-  <project name="distiller-telemetry"
-           path="distiller-telemetry"
-           revision="main" />
-
-  <project name="distiller-test-harness"
-           path="distiller-test-harness"
-           revision="main" />
-
-  <project name="distiller-cc"
-           path="distiller-cc"
-           revision="main" />
-
-  <project name="distiller-ota"
-           path="distiller-ota"
-           revision="main" />
-
-  <project name="distiller-watchdog"
-           path="distiller-watchdog"
-           revision="master" />
-
-  <project name="claude-code-web-manager"
-           path="claude-code-web-manager"
-           revision="main" />
-
-  <project name="VS-Code-Extensions"
-           path="VS-Code-Extensions"
-           revision="main" />
-
-  <project name="pamir-app"
-           path="pamir-app"
-           revision="main" />
-
-  <project name="pamir-ai-eink-dkms"
-           path="pamir-ai-eink-dkms"
-           revision="main" />
-
-  <project name="pamir-ai-sam-dkms"
-           path="pamir-ai-sam-dkms"
-           revision="main" />
-
-  <project name="pamir-ai-soundcard-dkms"
-           path="pamir-ai-soundcard-dkms"
-           revision="main" />
-
-  <project name="pamir-ai-lt7911d-dkms"
-           path="pamir-ai-lt7911d-dkms"
-           revision="main" />
-
+  <include name="rk3576-debian-ab.xml"/>
 </manifest>
