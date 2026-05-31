@@ -27,17 +27,44 @@ Nix-primary userland, produced by the `mkosi` rootfs builder.
 
 ### Build-host prerequisites
 
-- **Linux x86_64 host.**
-- **`gh` (GitHub CLI), authenticated.** Most BSP repos are private, and the
-  cross-toolchain and mkosi package pool are fetched from GitHub Releases. Run
-  `gh auth login` (or export `GH_TOKEN`) before syncing.
-- **Build tree on an ext4 / xfs / btrfs / f2fs / zfs filesystem.** The SDK
-  refuses to build from overlayfs, NTFS, or network mounts.
+**Host & environment**
+
+- **Linux x86_64 host** (Debian 12+ / Ubuntu 22.04+ recommended).
 - **The build user must own the tree** — the SDK enforces this; never build
-  under `sudo`. Fix ownership with
-  `sudo chown -h -R $(id -un):$(id -un) <tree>`.
-- **`python3`, `git`, `rsync`, and standard build tooling** on `PATH`; the SDK's
-  `check-package.sh` reports anything missing on first run.
+  under `sudo`. Fix ownership with `sudo chown -h -R $(id -un):$(id -un) <tree>`.
+  The build invokes `sudo` internally (ext4 image packing, the Nix chroot), so
+  the user needs working `sudo`.
+- **Build tree on an ext4 / xfs / btrfs / f2fs / zfs filesystem** — the SDK
+  refuses overlayfs, NTFS, and network mounts.
+- **Network access at build time** — `debootstrap` pulls Debian Bookworm,
+  `fetch-nix-tarball.sh` pulls the Nix release, and `gh` pulls the toolchain and
+  package pool.
+- **`qemu-user-static` binfmt registered** — the rootfs postinst runs in an
+  arm64 chroot under qemu on an x86_64 host.
+
+**Tools fetched at sync (no manual install)**
+
+- **AArch64 cross-toolchain** and the **mkosi deb package pool** — both pulled by
+  the `repo sync --verify` post-sync hook from GitHub Releases.
+- **`repo`** — Google's repo tool (see top of this README).
+- **`gh` (GitHub CLI), authenticated** — most BSP repos are private and the
+  Release assets need auth; run `gh auth login` (or export `GH_TOKEN`) first.
+
+**Host packages (Debian/Ubuntu)**
+
+```bash
+sudo apt-get install -y \
+    build-essential gcc g++ make bc bison flex libssl-dev \
+    git curl ca-certificates rsync fakeroot scons cpio gzip zstd sudo \
+    python3 python-is-python3 device-tree-compiler \
+    mkosi systemd-container debootstrap dpkg-dev \
+    qemu-user-static binfmt-support
+```
+
+- `mkosi` must be **v25 or newer** (v26 is what the tree is tested against); on
+  older distros install it from PyPI (`pipx install mkosi`) or backports.
+- The SDK's `check-package.sh` reports any remaining missing tool on first run
+  with the exact `apt-get install` line to fix it.
 
 ### Sync
 
