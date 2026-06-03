@@ -50,7 +50,7 @@ jobs:
       DEFCONFIG: rockchip_rk3576_lapis_defconfig
       MANIFEST_FILE: rk3576-debian-ab.xml
       MANIFEST_URL: https://github.com/pamir-ai-pkgs/manifest
-      MIN_FREE_GIB: "70"
+      MIN_FREE_GIB: "50"
       PRE_COMMIT_HOME: /srv/bsp/pre-commit-cache
       REPO_MIRROR: /srv/bsp/repo-mirror
       S3_BUCKET: distiller-os-release-artifacts
