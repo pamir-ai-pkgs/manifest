@@ -127,6 +127,11 @@ vendor crate. Without these flags, `repo sync` can still exit 0, but the
 toolchain, `mkosi/packages/`, or source-build dependencies are absent and the
 build fails.
 
+The FPC vendor crate remains a Git submodule owned by `lapis-hwserviced`; do
+not duplicate that gitlink as a manifest project. The verified post-sync hook
+runs `git submodule update --init --recursive`, so the parent repo stays the
+single source of truth for the submodule commit.
+
 To fetch those assets by hand:
 
 ```bash
