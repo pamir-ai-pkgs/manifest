@@ -15,7 +15,7 @@
   <project name="linux-rockchip-recovery" path="external/recovery" revision="main"/>
   <project name="linux-rockchip-rkwifibt" path="external/rkwifibt" revision="main"/>
   <project name="lapis-ota" path="external/lapis-ota" revision="main"/>
-  <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="main"/>
+  <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="main" sync-s="true"/>
   <project name="linux-rockchip-rkbin" path="rkbin" revision="main"/>
   <project name="linux-rockchip-tools" path="tools" revision="main"/>
   <project name="linux-rockchip-docs" path="docs" revision="main"/>

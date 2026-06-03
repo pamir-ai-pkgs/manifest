@@ -117,13 +117,15 @@ qemu-aarch64 binfmt, Docker, S3/GitHub auth, and post-sync BSP artifacts before
 ```bash
 mkdir -p ~/pamir-rk3576 && cd ~/pamir-rk3576
 repo init -u https://github.com/pamir-ai-pkgs/manifest -b main
-repo sync -j"$(nproc)" --verify
+repo sync -j"$(nproc)" --fetch-submodules --verify
 ```
 
 `--verify` is required. The post-sync hook in `linux-rockchip-bsp-tools` runs
-only under `--verify`, and it fetches the AArch64 cross-toolchain and the mkosi
-package pool from their GitHub Releases. Without it, `repo sync` still exits 0,
-but the toolchain and `mkosi/packages/` are absent and the build fails.
+only under `--verify`, and it fetches the AArch64 cross-toolchain, the mkosi
+package pool, and source-build submodules such as the `lapis-hwserviced` FPC
+vendor crate. Without these flags, `repo sync` can still exit 0, but the
+toolchain, `mkosi/packages/`, or source-build dependencies are absent and the
+build fails.
 
 To fetch those assets by hand:
 
@@ -186,9 +188,9 @@ The self-hosted runner keeps a persistent `repo --mirror` checkout at
 `/srv/bsp/workspaces/pamir-rk3576-<channel>`. The release driver refreshes the
 mirror first, then initializes the workspace with
 `--reference=/srv/bsp/repo-mirror` and runs `repo sync --current-branch
---optimized-fetch --prune --fail-fast --verify`. If a workspace becomes dirty
-or corrupt, delete only that channel workspace; the mirror remains the object
-cache for the replacement checkout.
+--fetch-submodules --optimized-fetch --prune --fail-fast --verify`. If a
+workspace becomes dirty or corrupt, delete only that channel workspace; the
+mirror remains the object cache for the replacement checkout.
 Do not use `repo sync --force-checkout` by default, because release correctness
 depends on failing when a runner worktree contains unexpected local changes.
 
