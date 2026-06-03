@@ -38,7 +38,8 @@ gh auth login          # or: export GH_TOKEN=<token>
 
 ### 1.3 Host environment
 
-- Linux x86_64 host (Debian 12+ or Ubuntu 22.04+ recommended).
+- Linux x86_64 host. Long-lived CI runners should use Debian Trixie or another
+  distribution with Python 3.12 or newer available as `/usr/bin/python3`.
 - The build tree must reside on an `ext4`, `xfs`, `btrfs`, `f2fs`, or `zfs`
   filesystem. `overlayfs`, NTFS, and network mounts are rejected.
 - The build user must own the tree and have working `sudo`; image packing and
@@ -52,11 +53,16 @@ gh auth login          # or: export GH_TOKEN=<token>
 
 ```bash
 sudo apt-get install -y \
-    build-essential gcc g++ make bc bison flex libssl-dev \
-    git curl ca-certificates rsync fakeroot scons cpio gzip zstd sudo \
-    python3 python-is-python3 device-tree-compiler \
-    mkosi systemd-container debootstrap dpkg-dev gh awscli \
-    qemu-user-static binfmt-support
+    awscli bc binfmt-support binutils bison btrfs-progs build-essential \
+    ca-certificates cargo cryptsetup-bin cmake coreutils cpio curl \
+    debhelper debianutils debootstrap device-tree-compiler diffutils \
+    devscripts dh-golang docker.io dosfstools dpkg-dev \
+    e2fsprogs erofs-utils fakeroot f2fs-tools file findutils flex gcc g++ \
+    gawk gh git golang-go grep gzip just libgmp-dev libmpc-dev \
+    libncurses-dev libssl-dev lz4 make mkosi mount mtd-utils mtools \
+    ntfs-3g openssl pkg-config python3 python-is-python3 qemu-user-static \
+    rsync rustc scons sed squashfs-tools sudo systemd-container tar uidmap \
+    unzip util-linux xz-utils zstd
 ```
 
 `mkosi` is the rootfs builder and must be version 25 or newer; the tree is
@@ -73,8 +79,37 @@ UV_INSTALL_DIR="$HOME/.local/bin" sh "$tmp"
 rm -f "$tmp"
 ```
 
+The default Lapis configuration builds `lapis-ota`, `lapis-hwserviced`, and
+`updateEngine` from source. Install a Rustup-managed stable toolchain with the
+aarch64 target, then install the Rust packaging helpers:
+
+```bash
+tmp="$(mktemp)"
+curl -fsSL https://sh.rustup.rs -o "$tmp"
+sh "$tmp" -y --profile minimal --default-toolchain stable
+rm -f "$tmp"
+export PATH="$HOME/.cargo/bin:$PATH"
+rustup toolchain install stable --profile minimal \
+    --component rustfmt --component clippy \
+    --target aarch64-unknown-linux-gnu
+rustup default stable
+cargo install --force cross cargo-deb
+sudo systemctl enable --now docker
+sudo usermod -aG docker "$USER"
+```
+
+Log out and back in, or restart the runner service, after changing Docker group
+membership.
+
 The SDK's `check-package.sh` reports any remaining missing tool on first run
 with the exact `apt-get install` line to fix it.
+
+For long-lived CI hosts, prefer the source-controlled dependency contract in
+`bsp-tools/ci/build-deps.sh`. The runner bootstrap script installs that exact
+package list plus the non-apt runner tools (`repo`, `uv`, Rustup, `cross`, and
+`cargo-deb`). The preflight scripts verify host tools, kernel headers,
+qemu-aarch64 binfmt, Docker, S3/GitHub auth, and post-sync BSP artifacts before
+`all-release` starts.
 
 ## 2. Sync the tree
 
