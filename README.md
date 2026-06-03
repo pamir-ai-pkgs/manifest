@@ -62,8 +62,8 @@ sudo apt-get install -y \
     gawk gh git golang-go grep gzip just libgmp-dev libmpc-dev \
     libncurses-dev libssl-dev lz4 make mkosi mount mtd-utils mtools \
     ntfs-3g openssl pkg-config python3 python-is-python3 qemu-user-static \
-    rsync rustc scons sed squashfs-tools sudo systemd-container tar uidmap \
-    unzip util-linux xz-utils zstd
+    reprepro rsync rustc scons sed squashfs-tools sudo systemd-container tar \
+    uidmap unzip util-linux xz-utils zstd
 ```
 
 `mkosi` is the rootfs builder and must be version 25 or newer; the tree is
