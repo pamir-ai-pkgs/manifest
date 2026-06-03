@@ -1,0 +1,179 @@
+name: RK3576 BSP Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - rk3576-v*
+  workflow_dispatch:
+    inputs:
+      manifest_ref:
+        description: Manifest branch, tag, or ref to build.
+        required: true
+        default: main
+      channel:
+        description: Artifact channel.
+        required: true
+        type: choice
+        default: scratch
+        options:
+          - scratch
+          - dev
+          - candidate
+          - stable
+      version:
+        description: Release version or candidate ID. Required for stable dispatch unless manifest_ref is rk3576-v*.
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rk3576-bsp-release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and publish update.img
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - rk3576
+      - bsp
+    timeout-minutes: 1440
+    env:
+      AWS_DEFAULT_REGION: eu-north-1
+      AWS_REGION: eu-north-1
+      DEFCONFIG: rockchip_rk3576_lapis_defconfig
+      MANIFEST_FILE: rk3576-debian-ab.xml
+      MANIFEST_URL: https://github.com/pamir-ai-pkgs/manifest
+      MIN_FREE_GIB: "250"
+      PRE_COMMIT_HOME: /srv/bsp/pre-commit-cache
+      S3_BUCKET: distiller-os-release-artifacts
+      UV_CACHE_DIR: /srv/bsp/uv-cache
+      WORK_ROOT: /srv/bsp/workspaces
+
+    steps:
+      - name: Checkout manifest repo
+        uses: actions/checkout@v6.0.3
+        with:
+          path: manifest-checkout
+
+      - name: Set up Python
+        uses: actions/setup-python@v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+
+      - name: Install repo tool
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          if ! command -v repo >/dev/null 2>&1; then
+            curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
+              -o "$HOME/.local/bin/repo"
+            chmod 0755 "$HOME/.local/bin/repo"
+          fi
+          echo "$HOME/.local/bin" >>"$GITHUB_PATH"
+
+      - name: Configure GitHub authentication
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          git config --global \
+            url."https://x-access-token:${GH_TOKEN}@github.com/pamir-ai-pkgs/".insteadOf \
+            "https://github.com/pamir-ai-pkgs/"
+          gh auth status
+
+      - name: Resolve build parameters
+        shell: bash
+        env:
+          DISPATCH_CHANNEL: ${{ inputs.channel }}
+          DISPATCH_MANIFEST_REF: ${{ inputs.manifest_ref }}
+          DISPATCH_VERSION: ${{ inputs.version }}
+        run: |
+          manifest_ref="${DISPATCH_MANIFEST_REF:-main}"
+          channel="${DISPATCH_CHANNEL:-dev}"
+          version="${DISPATCH_VERSION:-}"
+
+          if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
+            if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" == rk3576-v* ]]; then
+              manifest_ref="$GITHUB_REF_NAME"
+              channel="stable"
+              version="$GITHUB_REF_NAME"
+            else
+              manifest_ref="$GITHUB_REF_NAME"
+              channel="dev"
+              version="rk3576-dev-${GITHUB_SHA:0:12}"
+            fi
+          fi
+
+          if [[ "$channel" == "stable" && -z "$version" ]]; then
+            if [[ "$manifest_ref" == rk3576-v* ]]; then
+              version="$manifest_ref"
+            else
+              echo "stable dispatch requires version or rk3576-v* manifest_ref" >&2
+              exit 1
+            fi
+          fi
+
+          build_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          sdk_dir="${WORK_ROOT%/}/pamir-rk3576-${channel}"
+
+          {
+            echo "BUILD_ID=$build_id"
+            echo "CHANNEL=$channel"
+            echo "MANIFEST_REF=$manifest_ref"
+            echo "SDK_DIR=$sdk_dir"
+            echo "VERSION=${version:-rk3576-${channel}-${build_id}}"
+          } >>"$GITHUB_ENV"
+
+      - name: Bootstrap BSP tools
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$SDK_DIR" "$UV_CACHE_DIR" "$PRE_COMMIT_HOME"
+          cd "$SDK_DIR"
+          repo init -u "$MANIFEST_URL" -b "$MANIFEST_REF" -m "$MANIFEST_FILE"
+          repo sync -j"$(nproc)" --verify bsp-tools
+          uv --project bsp-tools sync --group dev --locked
+
+      - name: Validate release tooling
+        shell: bash
+        run: |
+          cd "$SDK_DIR/bsp-tools"
+          uv run --locked pre-commit run --all-files
+
+      - name: Runner preflight
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          cd "$SDK_DIR"
+          bsp-tools/ci/preflight-runner.sh
+
+      - name: Build and upload release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          cd "$SDK_DIR"
+          bsp-tools/ci/build-and-upload-release.sh
+
+      - name: Remove ephemeral GitHub token rewrite
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          git config --global --remove-section \
+            "url.https://x-access-token:${GH_TOKEN}@github.com/pamir-ai-pkgs/" || true

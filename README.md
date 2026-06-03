@@ -55,13 +55,26 @@ sudo apt-get install -y \
     build-essential gcc g++ make bc bison flex libssl-dev \
     git curl ca-certificates rsync fakeroot scons cpio gzip zstd sudo \
     python3 python-is-python3 device-tree-compiler \
-    mkosi systemd-container debootstrap dpkg-dev \
+    mkosi systemd-container debootstrap dpkg-dev gh awscli \
     qemu-user-static binfmt-support
 ```
 
 `mkosi` is the rootfs builder and must be version 25 or newer; the tree is
 tested against v26. On older distributions, install it from PyPI
 (`pipx install mkosi`) or from backports.
+
+`uv` maintains the BSP helper tooling environment. Install it on long-lived
+build hosts:
+
+```bash
+tmp="$(mktemp)"
+curl -fsSL https://astral.sh/uv/install.sh -o "$tmp"
+UV_INSTALL_DIR="$HOME/.local/bin" sh "$tmp"
+rm -f "$tmp"
+```
+
+The SDK's `check-package.sh` reports any remaining missing tool on first run
+with the exact `apt-get install` line to fix it.
 
 ## 2. Sync the tree
 
@@ -98,6 +111,59 @@ rebuild:
 ```bash
 ./build.sh updateimg
 ```
+
+For CI releases, use the release target so the build system writes a structured
+release directory:
+
+```bash
+./build.sh all-release:ci:<build-id>
+```
+
+The CI helper in `bsp-tools/ci/build-and-upload-release.sh` adds
+`release-notes.md`, `artifact-inventory.v1.json`, `build-info.v1.json`,
+`packages-lock.v1.json`, `repo-projects.v1.json`, and `SHA256SUMS` to that
+release directory before uploading it to S3.
+
+### CI/CD release flow
+
+The manifest repository owns full BSP image builds. Component repositories should
+run their own smaller checks; they do not trigger complete firmware builds
+directly.
+
+The workflow reads private BSP repositories through the repository secret
+`PAMIR_GITHUB_TOKEN`. The token must have private `repo` read access across the
+`pamir-ai-pkgs` BSP repositories. The EC2 runner's IAM role provides S3 access;
+do not add AWS keys to GitHub secrets.
+
+- Push to manifest `main`: build a dev image and upload to
+  `s3://distiller-os-release-artifacts/pamir-rk3576/dev/main/<build-id>/`.
+- Tag manifest as `rk3576-vX.Y.Z`: build a stable image and upload to
+  `s3://distiller-os-release-artifacts/pamir-rk3576/releases/rk3576-vX.Y.Z/`.
+- Manual dispatch: build `scratch`, `dev`, `candidate`, or `stable` from a
+  selected manifest ref.
+- Stable builds reject manifests that still use floating branch revisions for
+  projects. Pin release manifests to component tags or exact SHAs.
+
+Only channel pointers are mutable:
+
+```text
+s3://distiller-os-release-artifacts/pamir-rk3576/channels/<channel>/latest.json
+```
+
+All build and release prefixes are immutable.
+
+### Release metadata ownership
+
+The workspace-level BSP changelog and source-controlled release templates live
+in `bsp-tools/release/`. The manifest exposes them at the BSP root with
+`linkfile` entries:
+
+- `CHANGELOG.md` -> `bsp-tools/release/CHANGELOG.md`
+- `RELEASE.md` -> `bsp-tools/release/README.md`
+
+Generated CI release files are artifacts, not source files. Do not commit
+generated release inventories, package locks, checksums, or release notes back
+to the manifest.
 
 ## 4. Flash
 

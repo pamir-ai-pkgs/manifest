@@ -20,7 +20,10 @@
   <project name="linux-rockchip-tools" path="tools" revision="main"/>
   <project name="linux-rockchip-docs" path="docs" revision="main"/>
   <project name="linux-rockchip-mkosi" path="mkosi" revision="main"/>
-  <project name="linux-rockchip-bsp-tools" path="bsp-tools" revision="78f592dc5d321426e7f25a23954e7a6b0469a1d2"/>
+  <project name="linux-rockchip-bsp-tools" path="bsp-tools" revision="main">
+    <linkfile src="release/CHANGELOG.md" dest="CHANGELOG.md"/>
+    <linkfile src="release/README.md" dest="RELEASE.md"/>
+  </project>
 
   <repo-hooks in-project="linux-rockchip-bsp-tools" enabled-list="post-sync"/>
 </manifest>
