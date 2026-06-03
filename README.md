@@ -53,8 +53,9 @@ gh auth login          # or: export GH_TOKEN=<token>
 
 ```bash
 sudo apt-get install -y \
-    awscli bc binfmt-support binutils bison btrfs-progs build-essential \
-    ca-certificates cargo cryptsetup-bin cmake coreutils cpio curl \
+    awscli bc binfmt-support binutils binutils-aarch64-linux-gnu bison \
+    btrfs-progs build-essential ca-certificates cargo cryptsetup-bin cmake \
+    coreutils cpio curl \
     debhelper debianutils debootstrap device-tree-compiler diffutils \
     devscripts dh-golang docker.io dosfstools dpkg-dev \
     e2fsprogs erofs-utils fakeroot f2fs-tools file findutils flex gcc g++ \
