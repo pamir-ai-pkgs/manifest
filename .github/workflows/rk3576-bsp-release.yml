@@ -56,6 +56,7 @@ jobs:
       S3_BUCKET: distiller-os-release-artifacts
       UV_CACHE_DIR: /srv/bsp/uv-cache
       WORK_ROOT: /srv/bsp/workspaces
+      XDG_CACHE_HOME: /srv/bsp/cache
 
     steps:
       - name: Checkout manifest repo
@@ -137,7 +138,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
         run: |
-          mkdir -p "$SDK_DIR" "$UV_CACHE_DIR" "$PRE_COMMIT_HOME" "$REPO_MIRROR"
+          mkdir -p "$SDK_DIR" "$UV_CACHE_DIR" "$XDG_CACHE_HOME" "$PRE_COMMIT_HOME" "$REPO_MIRROR"
           cd "$SDK_DIR"
           python3 --version
           repo_init_args=()

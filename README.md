@@ -198,6 +198,9 @@ workspace becomes dirty or corrupt, delete only that channel workspace; the
 mirror remains the object cache for the replacement checkout.
 Do not use `repo sync --force-checkout` by default, because release correctness
 depends on failing when a runner worktree contains unexpected local changes.
+Tool caches are separate from source checkouts: `XDG_CACHE_HOME=/srv/bsp/cache`
+for mkosi, `UV_CACHE_DIR=/srv/bsp/uv-cache`, and
+`PRE_COMMIT_HOME=/srv/bsp/pre-commit-cache`.
 
 Only channel pointers are mutable:
 
