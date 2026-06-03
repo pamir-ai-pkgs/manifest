@@ -52,6 +52,7 @@ jobs:
       MANIFEST_URL: https://github.com/pamir-ai-pkgs/manifest
       MIN_FREE_GIB: "80"
       PRE_COMMIT_HOME: /srv/bsp/pre-commit-cache
+      REPO_MIRROR: /srv/bsp/repo-mirror
       S3_BUCKET: distiller-os-release-artifacts
       UV_CACHE_DIR: /srv/bsp/uv-cache
       WORK_ROOT: /srv/bsp/workspaces
@@ -136,11 +137,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
         run: |
-          mkdir -p "$SDK_DIR" "$UV_CACHE_DIR" "$PRE_COMMIT_HOME"
+          mkdir -p "$SDK_DIR" "$UV_CACHE_DIR" "$PRE_COMMIT_HOME" "$REPO_MIRROR"
           cd "$SDK_DIR"
           python3 --version
-          repo init -u "$MANIFEST_URL" -b "$MANIFEST_REF" -m "$MANIFEST_FILE"
-          repo sync -j"$(nproc)" --verify bsp-tools
+          repo_init_args=()
+          if [[ -d "$REPO_MIRROR/.repo" ]]; then
+            repo_init_args+=(--reference="$REPO_MIRROR")
+          fi
+          repo init -u "$MANIFEST_URL" -b "$MANIFEST_REF" -m "$MANIFEST_FILE" \
+            "${repo_init_args[@]}"
+          repo sync -j"$(nproc)" --current-branch --optimized-fetch \
+            --prune --fail-fast --verify bsp-tools
           uv --project bsp-tools sync --python /usr/bin/python3 --group dev --locked
 
       - name: Validate release tooling

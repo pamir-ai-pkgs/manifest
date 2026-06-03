@@ -179,6 +179,18 @@ do not add AWS keys to GitHub secrets.
 - Stable builds reject manifests that still use floating branch revisions for
   projects. Pin release manifests to component tags or exact SHAs.
 
+Source checkout caching is runner-local, not stored in GitHub Actions cache.
+The self-hosted runner keeps a persistent `repo --mirror` checkout at
+`/srv/bsp/repo-mirror` and channel workspaces under
+`/srv/bsp/workspaces/pamir-rk3576-<channel>`. The release driver refreshes the
+mirror first, then initializes the workspace with
+`--reference=/srv/bsp/repo-mirror` and runs `repo sync --current-branch
+--optimized-fetch --prune --fail-fast --verify`. If a workspace becomes dirty
+or corrupt, delete only that channel workspace; the mirror remains the object
+cache for the replacement checkout.
+Do not use `repo sync --force-checkout` by default, because release correctness
+depends on failing when a runner worktree contains unexpected local changes.
+
 Only channel pointers are mutable:
 
 ```text
