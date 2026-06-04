@@ -163,9 +163,10 @@ release directory:
 ```
 
 The CI helper in `bsp-tools/ci/build-and-upload-release.sh` adds
-`release-notes.md`, `artifact-inventory.v1.json`, `build-info.v1.json`,
-`packages-lock.v1.json`, `repo-projects.v1.json`, and `SHA256SUMS` to that
-release directory before uploading it to S3.
+`release-notes.md`, `github-release.v1.md`, `github-release.v1.json`,
+`artifact-inventory.v1.json`, `build-info.v1.json`, `packages-lock.v1.json`,
+`repo-projects.v1.json`, and `SHA256SUMS` to candidate/stable release
+directories before uploading them to S3.
 
 ### CI/CD release flow
 
@@ -180,12 +181,26 @@ do not add AWS keys to GitHub secrets.
 
 - Push to manifest `main`: build a dev image and upload to
   `s3://distiller-os-release-artifacts/pamir-rk3576/dev/main/<build-id>/`.
-- Tag manifest as `rk3576-vX.Y.Z`: build a stable image and upload to
-  `s3://distiller-os-release-artifacts/pamir-rk3576/releases/rk3576-vX.Y.Z/`.
+- Tag manifest as `rk3576-vX.Y.Z-rc.N`: build a pinned candidate image, upload
+  to
+  `s3://distiller-os-release-artifacts/pamir-rk3576/candidates/rk3576-vX.Y.Z-rc.N/<build-id>/`,
+  and publish a GitHub prerelease on the manifest repository.
+- Tag manifest as `rk3576-vX.Y.Z`: build a pinned stable image, upload to
+  `s3://distiller-os-release-artifacts/pamir-rk3576/releases/rk3576-vX.Y.Z/`,
+  and publish a GitHub release on the manifest repository.
 - Manual dispatch: build `scratch`, `dev`, `candidate`, or `stable` from a
-  selected manifest ref.
-- Stable builds reject manifests that still use floating branch revisions for
-  projects. Pin release manifests to component tags or exact SHAs.
+  selected manifest ref. Candidate and stable dispatches must build the same
+  existing manifest tag they publish.
+- Candidate and stable builds reject manifests that still use floating branch
+  revisions for projects. Pin release manifests to component tags or exact SHAs.
+
+Candidate and stable GitHub Releases are lightweight publication records. They
+attach `release-notes.md`, `github-release.v1.json`, `manifest.xml`,
+`SHA256SUMS`, `artifact-inventory.v1.json`, `build-info.v1.json`,
+`packages-lock.v1.json`, and `repo-projects.v1.json`. Full `update.img`,
+`update-ab.img`, rootfs/userdata images, package payloads, kernel binaries,
+logs, and validation evidence remain in private S3 and are linked from the
+GitHub Release body and artifact inventory.
 
 Source checkout caching is runner-local, not stored in GitHub Actions cache.
 The self-hosted runner keeps a persistent `repo --mirror` checkout at

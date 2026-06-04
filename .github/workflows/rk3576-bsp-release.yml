@@ -23,12 +23,12 @@ on:
           - candidate
           - stable
       version:
-        description: Release version or candidate ID. Required for stable dispatch unless manifest_ref is rk3576-v*.
+        description: Release tag. Candidate/stable dispatch must build the matching rk3576-v* tag.
         required: false
         default: ""
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: rk3576-bsp-release-${{ github.ref_name }}
@@ -100,24 +100,49 @@ jobs:
           manifest_ref="${DISPATCH_MANIFEST_REF:-main}"
           channel="${DISPATCH_CHANNEL:-dev}"
           version="${DISPATCH_VERSION:-}"
+          stable_tag_regex='^rk3576-v[0-9]+[.][0-9]+[.][0-9]+$'
+          candidate_tag_regex='^rk3576-v[0-9]+[.][0-9]+[.][0-9]+-rc[.][0-9]+$'
 
           if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
-            if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" == rk3576-v* ]]; then
+            if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" =~ $candidate_tag_regex ]]; then
+              manifest_ref="$GITHUB_REF_NAME"
+              channel="candidate"
+              version="$GITHUB_REF_NAME"
+            elif [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" =~ $stable_tag_regex ]]; then
               manifest_ref="$GITHUB_REF_NAME"
               channel="stable"
               version="$GITHUB_REF_NAME"
+            elif [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" == rk3576-v* ]]; then
+              echo "unsupported RK3576 release tag: $GITHUB_REF_NAME" >&2
+              echo "use rk3576-vX.Y.Z or rk3576-vX.Y.Z-rc.N" >&2
+              exit 1
             else
               manifest_ref="$GITHUB_REF_NAME"
               channel="dev"
               version="rk3576-dev-${GITHUB_SHA:0:12}"
             fi
-          fi
-
-          if [[ "$channel" == "stable" && -z "$version" ]]; then
-            if [[ "$manifest_ref" == rk3576-v* ]]; then
+          elif [[ "$channel" == "candidate" ]]; then
+            if [[ -z "$version" ]]; then
               version="$manifest_ref"
-            else
-              echo "stable dispatch requires version or rk3576-v* manifest_ref" >&2
+            fi
+            if [[ ! "$version" =~ $candidate_tag_regex ]]; then
+              echo "candidate dispatch requires rk3576-vX.Y.Z-rc.N version" >&2
+              exit 1
+            fi
+            if [[ "$manifest_ref" != "$version" ]]; then
+              echo "candidate dispatch must build the same tag it publishes" >&2
+              exit 1
+            fi
+          elif [[ "$channel" == "stable" ]]; then
+            if [[ -z "$version" ]]; then
+              version="$manifest_ref"
+            fi
+            if [[ ! "$version" =~ $stable_tag_regex ]]; then
+              echo "stable dispatch requires rk3576-vX.Y.Z version" >&2
+              exit 1
+            fi
+            if [[ "$manifest_ref" != "$version" ]]; then
+              echo "stable dispatch must build the same tag it publishes" >&2
               exit 1
             fi
           fi
@@ -173,6 +198,15 @@ jobs:
         run: |
           cd "$SDK_DIR"
           bsp-tools/ci/build-and-upload-release.sh
+
+      - name: Publish GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RELEASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          cd "$SDK_DIR"
+          bsp-tools/ci/publish-github-release.sh
 
       - name: Remove ephemeral GitHub token rewrite
         if: always()
