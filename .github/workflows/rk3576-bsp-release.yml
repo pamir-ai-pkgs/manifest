@@ -105,11 +105,11 @@ jobs:
 
           if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
             if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" =~ $candidate_tag_regex ]]; then
-              manifest_ref="$GITHUB_REF_NAME"
+              manifest_ref="refs/tags/$GITHUB_REF_NAME"
               channel="candidate"
               version="$GITHUB_REF_NAME"
             elif [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" =~ $stable_tag_regex ]]; then
-              manifest_ref="$GITHUB_REF_NAME"
+              manifest_ref="refs/tags/$GITHUB_REF_NAME"
               channel="stable"
               version="$GITHUB_REF_NAME"
             elif [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" == rk3576-v* ]]; then
@@ -123,25 +123,31 @@ jobs:
             fi
           elif [[ "$channel" == "candidate" ]]; then
             if [[ -z "$version" ]]; then
-              version="$manifest_ref"
+              version="${manifest_ref#refs/tags/}"
             fi
             if [[ ! "$version" =~ $candidate_tag_regex ]]; then
               echo "candidate dispatch requires rk3576-vX.Y.Z-rc.N version" >&2
               exit 1
             fi
-            if [[ "$manifest_ref" != "$version" ]]; then
+            if [[ "$manifest_ref" == "$version" ]]; then
+              manifest_ref="refs/tags/$version"
+            fi
+            if [[ "$manifest_ref" != "refs/tags/$version" ]]; then
               echo "candidate dispatch must build the same tag it publishes" >&2
               exit 1
             fi
           elif [[ "$channel" == "stable" ]]; then
             if [[ -z "$version" ]]; then
-              version="$manifest_ref"
+              version="${manifest_ref#refs/tags/}"
             fi
             if [[ ! "$version" =~ $stable_tag_regex ]]; then
               echo "stable dispatch requires rk3576-vX.Y.Z version" >&2
               exit 1
             fi
-            if [[ "$manifest_ref" != "$version" ]]; then
+            if [[ "$manifest_ref" == "$version" ]]; then
+              manifest_ref="refs/tags/$version"
+            fi
+            if [[ "$manifest_ref" != "refs/tags/$version" ]]; then
               echo "stable dispatch must build the same tag it publishes" >&2
               exit 1
             fi
