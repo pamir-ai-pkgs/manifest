@@ -184,6 +184,10 @@ jobs:
             "${repo_init_args[@]}"
           if [[ "$MANIFEST_REF" == refs/tags/* ]] &&
             git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
+            component_tag_ref="$MANIFEST_REF"
+            if [[ "$component_tag_ref" == refs/tags/rk3576-* ]]; then
+              component_tag_ref="refs/tags/${component_tag_ref#refs/tags/rk3576-}"
+            fi
             mapfile -t bsp_tools_remotes < <(git -C bsp-tools remote)
             bsp_tools_remote="${bsp_tools_remotes[0]:-}"
             if [[ -z "$bsp_tools_remote" ]]; then
@@ -191,7 +195,7 @@ jobs:
               exit 1
             fi
             git -C bsp-tools fetch --force "$bsp_tools_remote" \
-              "+refs/tags/*:refs/tags/*"
+              "$component_tag_ref:$component_tag_ref"
           fi
           repo sync -j"$(nproc)" --current-branch --optimized-fetch \
             --prune --fail-fast --verify bsp-tools
