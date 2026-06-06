@@ -184,7 +184,14 @@ jobs:
             "${repo_init_args[@]}"
           if [[ "$MANIFEST_REF" == refs/tags/* ]] &&
             git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
-            git -C bsp-tools fetch --force origin "+refs/tags/*:refs/tags/*"
+            mapfile -t bsp_tools_remotes < <(git -C bsp-tools remote)
+            bsp_tools_remote="${bsp_tools_remotes[0]:-}"
+            if [[ -z "$bsp_tools_remote" ]]; then
+              echo "bsp-tools checkout has no git remote" >&2
+              exit 1
+            fi
+            git -C bsp-tools fetch --force "$bsp_tools_remote" \
+              "+refs/tags/*:refs/tags/*"
           fi
           repo sync -j"$(nproc)" --current-branch --optimized-fetch \
             --prune --fail-fast --verify bsp-tools
