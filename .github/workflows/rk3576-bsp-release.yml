@@ -173,8 +173,12 @@ jobs:
           cd "$SDK_DIR"
           python3 --version
           repo_init_args=()
-          if [[ -d "$REPO_MIRROR/.repo" ]]; then
+          if [[ -d "$REPO_MIRROR/.repo" && "$MANIFEST_REF" != refs/tags/* ]]; then
             repo_init_args+=(--reference="$REPO_MIRROR")
+          fi
+          if [[ "$MANIFEST_REF" == refs/tags/* && -d .repo/manifests ]]; then
+            git -C .repo/manifests fetch --force "$MANIFEST_URL" \
+              "$MANIFEST_REF:$MANIFEST_REF"
           fi
           repo init -u "$MANIFEST_URL" -b "$MANIFEST_REF" -m "$MANIFEST_FILE" \
             "${repo_init_args[@]}"
