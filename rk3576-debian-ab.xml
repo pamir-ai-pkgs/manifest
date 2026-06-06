@@ -3,24 +3,24 @@
   <remote name="github" fetch="https://github.com/pamir-ai-pkgs/" review="https://github.com/pamir-ai-pkgs/" />
   <default remote="github" revision="main" dest-branch="main" sync-j="4" sync-c="true" />
 
-  <project name="linux-rockchip-device-rockchip" path="device/rockchip" revision="v0.0.2">
+  <project name="linux-rockchip-device-rockchip" path="device/rockchip" revision="refs/tags/v0.0.2">
     <linkfile src="common/scripts/build.sh" dest="build.sh"/>
     <linkfile src="common/Makefile" dest="Makefile"/>
     <linkfile src="common/scripts/rkflash.sh" dest="rkflash.sh"/>
   </project>
-  <project name="linux-rockchip-u-boot" path="u-boot" revision="v0.0.2"/>
-  <project name="linux-rockchip-kernel" path="kernel-6.1" revision="v0.0.2">
+  <project name="linux-rockchip-u-boot" path="u-boot" revision="refs/tags/v0.0.2"/>
+  <project name="linux-rockchip-kernel" path="kernel-6.1" revision="refs/tags/v0.0.2">
     <linkfile src="." dest="kernel"/>
   </project>
-  <project name="linux-rockchip-recovery" path="external/recovery" revision="v0.0.2"/>
-  <project name="linux-rockchip-rkwifibt" path="external/rkwifibt" revision="v0.0.2"/>
-  <project name="lapis-ota" path="external/lapis-ota" revision="v0.0.2"/>
-  <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="v0.0.2"/>
-  <project name="linux-rockchip-rkbin" path="rkbin" revision="v0.0.2"/>
-  <project name="linux-rockchip-tools" path="tools" revision="v0.0.2"/>
-  <project name="linux-rockchip-docs" path="docs" revision="v0.0.2"/>
-  <project name="linux-rockchip-mkosi" path="mkosi" revision="v0.0.2"/>
-  <project name="linux-rockchip-bsp-tools" path="bsp-tools" revision="v0.0.2">
+  <project name="linux-rockchip-recovery" path="external/recovery" revision="refs/tags/v0.0.2"/>
+  <project name="linux-rockchip-rkwifibt" path="external/rkwifibt" revision="refs/tags/v0.0.2"/>
+  <project name="lapis-ota" path="external/lapis-ota" revision="refs/tags/v0.0.2"/>
+  <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="refs/tags/v0.0.2"/>
+  <project name="linux-rockchip-rkbin" path="rkbin" revision="refs/tags/v0.0.2"/>
+  <project name="linux-rockchip-tools" path="tools" revision="refs/tags/v0.0.2"/>
+  <project name="linux-rockchip-docs" path="docs" revision="refs/tags/v0.0.2"/>
+  <project name="linux-rockchip-mkosi" path="mkosi" revision="refs/tags/v0.0.2"/>
+  <project name="linux-rockchip-bsp-tools" path="bsp-tools" revision="refs/tags/v0.0.2">
     <linkfile src="release/CHANGELOG.md" dest="CHANGELOG.md"/>
     <linkfile src="release/README.md" dest="RELEASE.md"/>
   </project>
