@@ -182,6 +182,10 @@ jobs:
           fi
           repo init -u "$MANIFEST_URL" -b "$MANIFEST_REF" -m "$MANIFEST_FILE" \
             "${repo_init_args[@]}"
+          if [[ "$MANIFEST_REF" == refs/tags/* ]] &&
+            git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
+            git -C bsp-tools fetch --force origin "+refs/tags/*:refs/tags/*"
+          fi
           repo sync -j"$(nproc)" --current-branch --optimized-fetch \
             --prune --fail-fast --verify bsp-tools
           uv --project bsp-tools sync --python /usr/bin/python3 --group dev --locked
