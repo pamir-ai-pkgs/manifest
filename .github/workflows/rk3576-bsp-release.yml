@@ -196,6 +196,12 @@ jobs:
             fi
             git -C bsp-tools fetch --force "$bsp_tools_remote" \
               "$component_tag_ref:$component_tag_ref"
+            component_tag_commit="$(git -C bsp-tools rev-parse "${component_tag_ref}^{}")"
+            git -C bsp-tools update-ref "$component_tag_ref" "$component_tag_commit"
+          fi
+          if git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
+            git -C bsp-tools reset --hard
+            git -C bsp-tools clean -fdx
           fi
           repo sync -j"$(nproc)" --current-branch --optimized-fetch \
             --prune --fail-fast --verify bsp-tools
