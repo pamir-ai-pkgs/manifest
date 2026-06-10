@@ -47,6 +47,8 @@ jobs:
     env:
       AWS_DEFAULT_REGION: eu-north-1
       AWS_REGION: eu-north-1
+      ARTIFACT_DOWNLOAD_BASE_URL: https://drra50dldpgsz.cloudfront.net
+      ARTIFACT_DOWNLOAD_TOKEN: ${{ secrets.PAMIR_ARTIFACT_DOWNLOAD_TOKEN }}
       DEFCONFIG: rockchip_rk3576_lapis_defconfig
       MANIFEST_FILE: rk3576-debian-ab.xml
       MANIFEST_URL: https://github.com/pamir-ai-pkgs/manifest
