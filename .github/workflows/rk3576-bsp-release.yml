@@ -31,7 +31,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: rk3576-bsp-release-${{ github.ref_name }}
+  group: rk3576-bsp-release
   cancel-in-progress: false
 
 jobs:
@@ -208,6 +208,14 @@ jobs:
           repo sync -j"$(nproc)" --current-branch --optimized-fetch \
             --prune --fail-fast --verify bsp-tools
           uv --project bsp-tools sync --python /usr/bin/python3 --group dev --locked
+
+      - name: Clean stale BSP outputs
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for workspace in "$WORK_ROOT"/pamir-rk3576-*; do
+            rm -rf "$workspace/output" "$workspace/rockdev"
+          done
 
       - name: Validate release tooling
         shell: bash
