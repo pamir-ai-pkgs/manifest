@@ -69,7 +69,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v8.2.0
         with:
-          enable-cache: true
+          enable-cache: false
 
       - name: Install repo tool
         shell: bash
