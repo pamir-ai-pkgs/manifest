@@ -13,7 +13,6 @@
     <linkfile src="." dest="kernel"/>
   </project>
   <project name="linux-rockchip-recovery" path="external/recovery" revision="refs/tags/v0.0.3"/>
-  <project name="linux-rockchip-rkwifibt" path="external/rkwifibt" revision="refs/tags/v0.0.3"/>
   <project name="lapis-ota" path="external/lapis-ota" revision="refs/tags/v0.0.3"/>
   <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="refs/tags/v0.0.3"/>
   <project name="linux-rockchip-rkbin" path="rkbin" revision="refs/tags/v0.0.3"/>
