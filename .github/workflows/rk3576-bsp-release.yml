@@ -213,12 +213,16 @@ jobs:
         shell: bash
         run: |
           shopt -s nullglob
+          # The Incremental mkosi cache (a bookworm base from the prior release)
+          # must not survive the bookworm->trixie switch or apt resolves stale
+          # bookworm packages (libpipewire deb12u1, old libdrm/libwayland) into
+          # trixie. Wipe every location mkosi may cache the base/packages in.
           for workspace in "$WORK_ROOT"/pamir-rk3576-*; do
-            # mkosi.cache is the Incremental package/image cache; it must not
-            # survive the bookworm->trixie switch or apt resolves stale bookworm
-            # packages (libpipewire deb12u1, old libdrm/libwayland) into trixie.
-            rm -rf "$workspace/output" "$workspace/rockdev" "$workspace/mkosi/mkosi.cache"
+            rm -rf "$workspace/output" "$workspace/rockdev" \
+                   "$workspace/mkosi/mkosi.cache" "$workspace/mkosi/mkosi.builddir" \
+                   "$workspace/mkosi"/mkosi.cache.* 2>/dev/null || true
           done
+          rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/mkosi" 2>/dev/null || true
 
       - name: Validate release tooling
         shell: bash
