@@ -274,13 +274,19 @@ jobs:
           echo "runner mkosi ${have:-none} < ${need}; installing mkosi v26 from git via uv"
           uv tool install --force "mkosi @ git+https://github.com/systemd/mkosi@v26"
           bin="$(uv tool dir --bin 2>/dev/null || echo "$HOME/.local/bin")"
-          echo "$bin" >> "$GITHUB_PATH"
           got="$("$bin/mkosi" --version 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo 0)"
           if [ "${got:-0}" -lt "$need" ]; then
             echo "::error::could not obtain mkosi >= ${need} (got ${got:-none}); upgrade the runner's mkosi" >&2
             exit 1
           fi
-          echo "mkosi ${got} provisioned at ${bin}"
+          # A $GITHUB_PATH prepend does not reach the build's mkosi call (it
+          # resolves the apt binary), so override the system mkosi with the v26
+          # wrapper directly. Also export PATH for any in-step lookups.
+          echo "$bin" >> "$GITHUB_PATH"
+          sys="$(command -v mkosi 2>/dev/null || echo /usr/bin/mkosi)"
+          sudo ln -sf "$bin/mkosi" "$sys"
+          sudo ln -sf "$bin/mkosi" /usr/local/bin/mkosi 2>/dev/null || true
+          echo "mkosi ${got} now resolves at ${sys}: $(mkosi --version 2>/dev/null)"
 
       - name: Build and upload release
         shell: bash
