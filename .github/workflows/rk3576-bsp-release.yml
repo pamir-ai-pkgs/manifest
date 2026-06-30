@@ -279,14 +279,16 @@ jobs:
             echo "::error::could not obtain mkosi >= ${need} (got ${got:-none}); upgrade the runner's mkosi" >&2
             exit 1
           fi
-          # A $GITHUB_PATH prepend does not reach the build's mkosi call (it
-          # resolves the apt binary), so override the system mkosi with the v26
-          # wrapper directly. Also export PATH for any in-step lookups.
+          # build.sh re-execs under a login shell whose PATH puts ~/.local/bin
+          # ahead of the system dirs, so a 25.3 there wins over /usr/bin. Override
+          # every mkosi the build could resolve, and log all copies for clarity.
           echo "$bin" >> "$GITHUB_PATH"
-          sys="$(command -v mkosi 2>/dev/null || echo /usr/bin/mkosi)"
-          sudo ln -sf "$bin/mkosi" "$sys"
-          sudo ln -sf "$bin/mkosi" /usr/local/bin/mkosi 2>/dev/null || true
-          echo "mkosi ${got} now resolves at ${sys}: $(mkosi --version 2>/dev/null)"
+          echo "mkosi copies on PATH before override:"; which -a mkosi 2>/dev/null || true
+          for cand in "$HOME/.local/bin/mkosi" "$(command -v mkosi 2>/dev/null)" /usr/local/bin/mkosi /usr/bin/mkosi; do
+            [ -n "$cand" ] && [ "$cand" != "$bin/mkosi" ] || continue
+            if [ -w "$(dirname "$cand")" ] 2>/dev/null; then ln -sf "$bin/mkosi" "$cand"; else sudo ln -sf "$bin/mkosi" "$cand" 2>/dev/null || true; fi
+          done
+          echo "after override -> $(command -v mkosi): $(mkosi --version 2>/dev/null)"
 
       - name: Build and upload release
         shell: bash
