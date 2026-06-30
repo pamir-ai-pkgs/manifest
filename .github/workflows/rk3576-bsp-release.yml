@@ -258,6 +258,29 @@ jobs:
           fi
           echo "AVB vbmeta signing key provisioned at u-boot/keys/avb_vbmeta.pem"
 
+      - name: Ensure mkosi >= 26
+        shell: bash
+        run: |
+          # mkosi.conf sets MinimumVersion=26 (trixie migration); trixie's apt
+          # mkosi is 25.3 and 26 is not packaged yet, so install it from PyPI
+          # via uv and put it ahead of the apt binary on PATH for the build.
+          need=26
+          have="$(mkosi --version 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo 0)"
+          if [ "${have:-0}" -ge "$need" ]; then
+            echo "mkosi ${have} already satisfies >= ${need}"
+            exit 0
+          fi
+          echo "runner mkosi ${have:-none} < ${need}; installing from PyPI via uv"
+          uv tool install --force 'mkosi>=26'
+          bin="$(uv tool dir --bin 2>/dev/null || echo "$HOME/.local/bin")"
+          echo "$bin" >> "$GITHUB_PATH"
+          got="$("$bin/mkosi" --version 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo 0)"
+          if [ "${got:-0}" -lt "$need" ]; then
+            echo "::error::could not obtain mkosi >= ${need} (got ${got:-none}); upgrade the runner's mkosi" >&2
+            exit 1
+          fi
+          echo "mkosi ${got} provisioned at ${bin}"
+
       - name: Build and upload release
         shell: bash
         env:
