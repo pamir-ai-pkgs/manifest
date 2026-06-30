@@ -232,6 +232,32 @@ jobs:
           rm -rf output rockdev
           bsp-tools/ci/preflight-runner.sh
 
+      - name: Provision AVB vbmeta signing key
+        shell: bash
+        env:
+          AVB_VBMETA_KEY_B64: ${{ secrets.PAMIR_AVB_VBMETA_KEY_B64 }}
+        run: |
+          # RK_PAMIR_AVB_VERITY=y / CONFIG_PAMIR_AVB_ENFORCE=y require the
+          # RSA-4096 vbmeta key at build time: U-Boot pins its public key and
+          # the mkosi stage signs per-slot vbmeta. The key is never committed
+          # (u-boot/keys/ is gitignored), so materialize it from the secret
+          # after sync and before the build, into the path both consumers read.
+          if [ -z "${AVB_VBMETA_KEY_B64:-}" ]; then
+            echo "::error::PAMIR_AVB_VBMETA_KEY_B64 secret is not set" >&2
+            exit 1
+          fi
+          install -d -m 0700 "$SDK_DIR/u-boot/keys"
+          ( umask 077
+            printf '%s' "$AVB_VBMETA_KEY_B64" | base64 -d \
+              > "$SDK_DIR/u-boot/keys/avb_vbmeta.pem" )
+          if ! head -1 "$SDK_DIR/u-boot/keys/avb_vbmeta.pem" \
+              | grep -q "BEGIN .*PRIVATE KEY"; then
+            echo "::error::decoded AVB key is not a PEM private key" >&2
+            rm -f "$SDK_DIR/u-boot/keys/avb_vbmeta.pem"
+            exit 1
+          fi
+          echo "AVB vbmeta signing key provisioned at u-boot/keys/avb_vbmeta.pem"
+
       - name: Build and upload release
         shell: bash
         env:
@@ -257,3 +283,9 @@ jobs:
         run: |
           git config --global --remove-section \
             "url.https://x-access-token:${GH_TOKEN}@github.com/pamir-ai-pkgs/" || true
+
+      - name: Wipe provisioned AVB signing key
+        if: always()
+        shell: bash
+        run: |
+          rm -f "${SDK_DIR:-/nonexistent}/u-boot/keys/avb_vbmeta.pem" || true
