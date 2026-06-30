@@ -261,34 +261,30 @@ jobs:
       - name: Ensure mkosi >= 26
         shell: bash
         run: |
-          # mkosi.conf sets MinimumVersion=26 (trixie migration); trixie's apt
-          # mkosi is 25.3 and 26 is neither in apt nor on PyPI, so install
-          # mkosi v26 from the systemd/mkosi git tag via uv and put it ahead of
-          # the apt binary on PATH for the build.
-          need=26
-          have="$(mkosi --version 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo 0)"
-          if [ "${have:-0}" -ge "$need" ]; then
-            echo "mkosi ${have} already satisfies >= ${need}"
-            exit 0
-          fi
-          echo "runner mkosi ${have:-none} < ${need}; installing mkosi v26 from git via uv"
+          # mkosi.conf needs >=26; trixie has 25.3 (apt), not on PyPI. Install v26
+          # from git via uv and symlink it over every copy the build's login shell
+          # might resolve (it prefers ~/.local/bin), verifying via a login shell.
           uv tool install --force "mkosi @ git+https://github.com/systemd/mkosi@v26"
           bin="$(uv tool dir --bin 2>/dev/null || echo "$HOME/.local/bin")"
           got="$("$bin/mkosi" --version 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo 0)"
-          if [ "${got:-0}" -lt "$need" ]; then
-            echo "::error::could not obtain mkosi >= ${need} (got ${got:-none}); upgrade the runner's mkosi" >&2
+          if [ "${got:-0}" -lt 26 ]; then
+            echo "::error::mkosi v26 install failed (got ${got:-none} at ${bin})" >&2
             exit 1
           fi
-          # build.sh re-execs under a login shell whose PATH puts ~/.local/bin
-          # ahead of the system dirs, so a 25.3 there wins over /usr/bin. Override
-          # every mkosi the build could resolve, and log all copies for clarity.
-          echo "$bin" >> "$GITHUB_PATH"
-          echo "mkosi copies on PATH before override:"; which -a mkosi 2>/dev/null || true
-          for cand in "$HOME/.local/bin/mkosi" "$(command -v mkosi 2>/dev/null)" /usr/local/bin/mkosi /usr/bin/mkosi; do
+          echo "mkosi copies before override:"; which -a mkosi 2>/dev/null || true
+          for cand in "$HOME/.local/bin/mkosi" /usr/local/bin/mkosi /usr/bin/mkosi "$(command -v mkosi 2>/dev/null)"; do
             [ -n "$cand" ] && [ "$cand" != "$bin/mkosi" ] || continue
-            if [ -w "$(dirname "$cand")" ] 2>/dev/null; then ln -sf "$bin/mkosi" "$cand"; else sudo ln -sf "$bin/mkosi" "$cand" 2>/dev/null || true; fi
+            d="$(dirname "$cand")"
+            if [ -w "$d" ] 2>/dev/null; then ln -sf "$bin/mkosi" "$cand"; else sudo ln -sf "$bin/mkosi" "$cand" 2>/dev/null || true; fi
           done
-          echo "after override -> $(command -v mkosi): $(mkosi --version 2>/dev/null)"
+          echo "$bin" >> "$GITHUB_PATH"
+          echo "mkosi copies after override:"; which -a mkosi 2>/dev/null || true
+          login_ver="$(bash -lc 'mkosi --version' 2>/dev/null || true)"
+          echo "login-shell mkosi (what build.sh uses): ${login_ver:-unknown} at $(bash -lc 'command -v mkosi' 2>/dev/null)"
+          if ! echo "$login_ver" | grep -qE '2[6-9]|[3-9][0-9]'; then
+            echo "::error::build login shell still resolves mkosi < 26 (${login_ver:-none})" >&2
+            exit 1
+          fi
 
       - name: Build and upload release
         shell: bash
