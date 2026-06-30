@@ -262,16 +262,17 @@ jobs:
         shell: bash
         run: |
           # mkosi.conf sets MinimumVersion=26 (trixie migration); trixie's apt
-          # mkosi is 25.3 and 26 is not packaged yet, so install it from PyPI
-          # via uv and put it ahead of the apt binary on PATH for the build.
+          # mkosi is 25.3 and 26 is neither in apt nor on PyPI, so install
+          # mkosi v26 from the systemd/mkosi git tag via uv and put it ahead of
+          # the apt binary on PATH for the build.
           need=26
           have="$(mkosi --version 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo 0)"
           if [ "${have:-0}" -ge "$need" ]; then
             echo "mkosi ${have} already satisfies >= ${need}"
             exit 0
           fi
-          echo "runner mkosi ${have:-none} < ${need}; installing from PyPI via uv"
-          uv tool install --force 'mkosi>=26'
+          echo "runner mkosi ${have:-none} < ${need}; installing mkosi v26 from git via uv"
+          uv tool install --force "mkosi @ git+https://github.com/systemd/mkosi@v26"
           bin="$(uv tool dir --bin 2>/dev/null || echo "$HOME/.local/bin")"
           echo "$bin" >> "$GITHUB_PATH"
           got="$("$bin/mkosi" --version 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo 0)"
