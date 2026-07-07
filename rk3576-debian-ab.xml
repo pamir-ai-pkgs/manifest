@@ -15,6 +15,7 @@
   <project name="linux-rockchip-recovery" path="external/recovery" revision="refs/tags/v0.0.4"/>
   <project name="lapis-ota" path="external/lapis-ota" revision="refs/tags/v0.0.4"/>
   <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="refs/tags/v0.0.4"/>
+  <project name="lapis-pkg-updater" path="external/lapis-pkg-updater" revision="main"/>
   <project name="linux-rockchip-rkbin" path="rkbin" revision="refs/tags/v0.0.4"/>
   <project name="linux-rockchip-tools" path="tools" revision="refs/tags/v0.0.4"/>
   <project name="linux-rockchip-docs" path="docs" revision="refs/tags/v0.0.4"/>
