@@ -221,9 +221,16 @@ Only channel pointers are mutable:
 
 ```text
 s3://distiller-os-release-artifacts/pamir-rk3576/channels/<channel>/latest.json
+s3://distiller-os-release-artifacts/pamir-rk3576/releases/dev-latest.json
+s3://distiller-os-release-artifacts/pamir-rk3576/releases/sec-latest.json
 ```
 
-All build and release prefixes are immutable.
+The `dev` and `candidate` channels use `channels/<channel>/latest.json`. The
+stable channel serves two release lines with one pointer per line, so neither
+line's build moves the other's: `dev-latest.json` tracks the dev-facing tagged
+stable releases (the default), and `sec-latest.json` tracks the secure EVT3
+beta workflow, which selects it via `STABLE_POINTER_NAME`. All build and
+release prefixes are immutable.
 
 ### Release metadata ownership
 

@@ -1,0 +1,334 @@
+name: RK3576 Secure EVT3 Beta
+
+# Secure EVT3 image for the 18-unit beta batch. Dispatch-only, separate from
+# rk3576-bsp-release.yml. Publishes to the stable channel but moves only
+# releases/sec-latest.json; dev-facing stable releases move
+# releases/dev-latest.json.
+
+on:
+  workflow_dispatch:
+    inputs:
+      manifest_ref:
+        description: Manifest branch, tag, or ref to build (device pin must carry the secure EVT3 defconfig).
+        required: true
+        default: main
+      version:
+        description: Beta build label (optional).
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  # Serialize with the release workflow: shared runner mirror and caches.
+  group: rk3576-bsp-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and publish secure EVT3 beta image
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - rk3576
+      - bsp
+    timeout-minutes: 1440
+    env:
+      AWS_DEFAULT_REGION: eu-north-1
+      AWS_REGION: eu-north-1
+      ARTIFACT_DOWNLOAD_BASE_URL: https://drra50dldpgsz.cloudfront.net
+      ARTIFACT_DOWNLOAD_TOKEN: ${{ secrets.PAMIR_ARTIFACT_DOWNLOAD_TOKEN }}
+      DEFCONFIG: rockchip_rk3576_lapis_evt3_secure_defconfig
+      MANIFEST_FILE: rk3576-debian-ab.xml
+      MANIFEST_URL: https://github.com/pamir-ai-pkgs/manifest
+      MIN_FREE_GIB: "50"
+      PRE_COMMIT_HOME: /srv/bsp/pre-commit-cache
+      RAUC_BUNDLE: "1"
+      REPO_MIRROR: /srv/bsp/repo-mirror
+      S3_BUCKET: distiller-os-release-artifacts
+      STABLE_POINTER_NAME: sec-latest.json
+      UV_CACHE_DIR: /srv/bsp/uv-cache
+      WORK_ROOT: /srv/bsp/workspaces
+      XDG_CACHE_HOME: /srv/bsp/cache
+
+    steps:
+      - name: Checkout manifest repo
+        uses: actions/checkout@v6.0.3
+        with:
+          path: manifest-checkout
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: false
+
+      - name: Install repo tool
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          if ! command -v repo >/dev/null 2>&1; then
+            curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
+              -o "$HOME/.local/bin/repo"
+            chmod 0755 "$HOME/.local/bin/repo"
+          fi
+          echo "$HOME/.local/bin" >>"$GITHUB_PATH"
+
+      - name: Configure GitHub authentication
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          git config --global \
+            url."https://x-access-token:${GH_TOKEN}@github.com/pamir-ai-pkgs/".insteadOf \
+            "https://github.com/pamir-ai-pkgs/"
+          gh auth status
+
+      - name: Resolve build parameters
+        shell: bash
+        env:
+          DISPATCH_MANIFEST_REF: ${{ inputs.manifest_ref }}
+          DISPATCH_VERSION: ${{ inputs.version }}
+        run: |
+          manifest_ref="${DISPATCH_MANIFEST_REF:-main}"
+          channel="stable"
+          version="${DISPATCH_VERSION:-}"
+          build_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          if [[ -z "$version" ]]; then
+            version="rk3576-beta-evt3-${build_id}"
+          fi
+          # Distinct workspace; channel=stable gives the standard
+          # releases/<version>/ path and the sec-latest.json pointer.
+          sdk_dir="${WORK_ROOT%/}/pamir-rk3576-beta-evt3"
+
+          {
+            echo "BUILD_ID=$build_id"
+            echo "CHANNEL=$channel"
+            echo "MANIFEST_REF=$manifest_ref"
+            echo "SDK_DIR=$sdk_dir"
+            echo "VERSION=$version"
+          } >>"$GITHUB_ENV"
+
+      - name: Bootstrap BSP tools
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$SDK_DIR" "$UV_CACHE_DIR" "$XDG_CACHE_HOME" "$PRE_COMMIT_HOME" "$REPO_MIRROR"
+          cd "$SDK_DIR"
+          python3 --version
+          repo_init_args=()
+          if [[ -d "$REPO_MIRROR/.repo" && "$MANIFEST_REF" != refs/tags/* ]]; then
+            repo_init_args+=(--reference="$REPO_MIRROR")
+          fi
+          if [[ "$MANIFEST_REF" == refs/tags/* && -d .repo/manifests ]]; then
+            git -C .repo/manifests fetch --force "$MANIFEST_URL" \
+              "$MANIFEST_REF:$MANIFEST_REF"
+          fi
+          repo init -u "$MANIFEST_URL" -b "$MANIFEST_REF" -m "$MANIFEST_FILE" \
+            "${repo_init_args[@]}"
+          if [[ "$MANIFEST_REF" == refs/tags/* ]] &&
+            git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
+            component_tag_ref="$MANIFEST_REF"
+            if [[ "$component_tag_ref" == refs/tags/rk3576-* ]]; then
+              component_tag_ref="refs/tags/${component_tag_ref#refs/tags/rk3576-}"
+            fi
+            mapfile -t bsp_tools_remotes < <(git -C bsp-tools remote)
+            bsp_tools_remote="${bsp_tools_remotes[0]:-}"
+            if [[ -z "$bsp_tools_remote" ]]; then
+              echo "bsp-tools checkout has no git remote" >&2
+              exit 1
+            fi
+            git -C bsp-tools fetch --force "$bsp_tools_remote" \
+              "$component_tag_ref:$component_tag_ref"
+            component_tag_commit="$(git -C bsp-tools rev-parse "${component_tag_ref}^{}")"
+            git -C bsp-tools update-ref "$component_tag_ref" "$component_tag_commit"
+          fi
+          if git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
+            git -C bsp-tools reset --hard
+            git -C bsp-tools clean -fdx
+          fi
+          repo sync -j"$(nproc)" --current-branch --optimized-fetch \
+            --prune --fail-fast --verify bsp-tools
+          uv --project bsp-tools sync --python /usr/bin/python3 --group dev --locked
+
+      - name: Clean stale BSP outputs
+        shell: bash
+        run: |
+          shopt -s nullglob
+          # The Incremental mkosi cache (a bookworm base from the prior release)
+          # must not survive the bookworm->trixie switch or apt resolves stale
+          # bookworm packages (libpipewire deb12u1, old libdrm/libwayland) into
+          # trixie. Wipe every location mkosi may cache the base/packages in.
+          for workspace in "$WORK_ROOT"/pamir-rk3576-*; do
+            rm -rf "$workspace/output" "$workspace/rockdev" \
+                   "$workspace/mkosi/mkosi.cache" "$workspace/mkosi/mkosi.builddir" \
+                   "$workspace/mkosi"/mkosi.cache.* 2>/dev/null || true
+          done
+          rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/mkosi" 2>/dev/null || true
+
+      - name: Validate release tooling
+        shell: bash
+        run: |
+          cd "$SDK_DIR/bsp-tools"
+          uv run --locked pre-commit run --all-files
+
+      - name: Runner preflight
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          cd "$SDK_DIR"
+          rm -rf output rockdev
+          bsp-tools/ci/preflight-runner.sh
+
+      - name: Provision FIT boot-chain signing keys
+        shell: bash
+        env:
+          BOOT_KEYS_TGZ_B64: ${{ secrets.PAMIR_BOOT_KEYS_TGZ_B64 }}
+          OTP_PUBKEY_SHA256: ${{ vars.PAMIR_OTP_PUBKEY_SHA256 }}
+        run: |
+          # RK_SECURE_BOOT=y signs the loader and both FIT keyrings from
+          # u-boot/keys/. These MUST be the canonical fielded keys: the OTP
+          # hash and the keyrings baked into fielded SPL/U-Boot only verify
+          # images signed by them, so regenerating keys in CI (or silently
+          # picking up stale keys left on the persistent runner workspace)
+          # ships an unbootable or bricking OTA. Wipe the keys dir and
+          # materialize the set from the secret; the AVB step below re-adds
+          # avb_vbmeta.pem, so this step must stay ordered before it.
+          if [ -z "${BOOT_KEYS_TGZ_B64:-}" ]; then
+            echo "::error::PAMIR_BOOT_KEYS_TGZ_B64 secret is not set" >&2
+            exit 1
+          fi
+          if [ -z "${OTP_PUBKEY_SHA256:-}" ]; then
+            echo "::error::PAMIR_OTP_PUBKEY_SHA256 variable is not set" >&2
+            exit 1
+          fi
+          keys_dir="$SDK_DIR/u-boot/keys"
+          rm -rf "$keys_dir"
+          install -d -m 0700 "$keys_dir"
+          ( umask 077
+            printf '%s' "$BOOT_KEYS_TGZ_B64" | base64 -d \
+              | tar -xzf - -C "$keys_dir" )
+          missing=0
+          for f in dev.key dev.pubkey dev.crt root.key root.pubkey root.crt \
+              ub-v1.key kernel-v1.key \
+              ub-v1.crt ub-v2.crt ub-v3.crt ub-v4.crt ub-v5.crt \
+              ub-v1.pubkey ub-v2.pubkey ub-v3.pubkey ub-v4.pubkey \
+              ub-v5.pubkey \
+              kernel-v1.crt kernel-v2.crt kernel-v3.crt kernel-v4.crt \
+              kernel-v5.crt \
+              kernel-v1.pubkey kernel-v2.pubkey kernel-v3.pubkey \
+              kernel-v4.pubkey kernel-v5.pubkey; do
+            if [ ! -s "$keys_dir/$f" ]; then
+              echo "::error::boot key set is missing $f" >&2
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || { rm -rf "$keys_dir"; exit 1; }
+          for k in dev root ub-v1 kernel-v1; do
+            if ! openssl rsa -in "$keys_dir/$k.key" -check -noout \
+                >/dev/null 2>&1; then
+              echo "::error::$k.key is not a valid RSA private key" >&2
+              rm -rf "$keys_dir"
+              exit 1
+            fi
+          done
+          # security-createkeys names the rk_sign_tool output
+          # private_key.pem/public_key.pem and symlinks dev.* onto it;
+          # symlinks don't survive the tarball, so recreate the aliases.
+          ln -rsf "$keys_dir/dev.key" "$keys_dir/private_key.pem"
+          ln -rsf "$keys_dir/dev.pubkey" "$keys_dir/public_key.pem"
+          # Brick guard: dev.pubkey must be the OTP-bound key; a mismatch
+          # means fielded BootROM/SPL cannot verify what we sign.
+          got="$(sha256sum "$keys_dir/dev.pubkey" | cut -d' ' -f1)"
+          if [ "$got" != "$OTP_PUBKEY_SHA256" ]; then
+            echo "::error::dev.pubkey sha256 $got does not match" \
+              "PAMIR_OTP_PUBKEY_SHA256 — refusing to sign with a key the" \
+              "fielded OTP anchor cannot verify" >&2
+            rm -rf "$keys_dir"
+            exit 1
+          fi
+          echo "FIT boot-chain signing keys provisioned at u-boot/keys/" \
+            "(dev.pubkey verified against OTP anchor hash)"
+
+      - name: Provision AVB vbmeta signing key
+        shell: bash
+        env:
+          AVB_VBMETA_KEY_B64: ${{ secrets.PAMIR_AVB_VBMETA_KEY_B64 }}
+        run: |
+          # RK_PAMIR_AVB_VERITY=y / CONFIG_PAMIR_AVB_ENFORCE=y require the
+          # RSA-4096 vbmeta key at build time: U-Boot pins its public key and
+          # the mkosi stage signs per-slot vbmeta. The key is never committed
+          # (u-boot/keys/ is gitignored), so materialize it from the secret
+          # after sync and before the build, into the path both consumers read.
+          if [ -z "${AVB_VBMETA_KEY_B64:-}" ]; then
+            echo "::error::PAMIR_AVB_VBMETA_KEY_B64 secret is not set" >&2
+            exit 1
+          fi
+          install -d -m 0700 "$SDK_DIR/u-boot/keys"
+          ( umask 077
+            printf '%s' "$AVB_VBMETA_KEY_B64" | base64 -d \
+              > "$SDK_DIR/u-boot/keys/avb_vbmeta.pem" )
+          if ! head -1 "$SDK_DIR/u-boot/keys/avb_vbmeta.pem" \
+              | grep -q "BEGIN .*PRIVATE KEY"; then
+            echo "::error::decoded AVB key is not a PEM private key" >&2
+            rm -f "$SDK_DIR/u-boot/keys/avb_vbmeta.pem"
+            exit 1
+          fi
+          echo "AVB vbmeta signing key provisioned at u-boot/keys/avb_vbmeta.pem"
+
+      - name: Ensure mkosi >= 26
+        shell: bash
+        run: |
+          # mkosi.conf needs >=26; trixie has 25.3 (apt), not on PyPI. Install v26
+          # from git via uv and symlink it over every copy the build's login shell
+          # might resolve (it prefers ~/.local/bin), verifying via a login shell.
+          uv tool install --force "mkosi @ git+https://github.com/systemd/mkosi@v26"
+          bin="$(uv tool dir --bin 2>/dev/null || echo "$HOME/.local/bin")"
+          got="$("$bin/mkosi" --version 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo 0)"
+          if [ "${got:-0}" -lt 26 ]; then
+            echo "::error::mkosi v26 install failed (got ${got:-none} at ${bin})" >&2
+            exit 1
+          fi
+          echo "mkosi copies before override:"; which -a mkosi 2>/dev/null || true
+          for cand in "$HOME/.local/bin/mkosi" /usr/local/bin/mkosi /usr/bin/mkosi "$(command -v mkosi 2>/dev/null)"; do
+            [ -n "$cand" ] && [ "$cand" != "$bin/mkosi" ] || continue
+            d="$(dirname "$cand")"
+            if [ -w "$d" ] 2>/dev/null; then ln -sf "$bin/mkosi" "$cand"; else sudo ln -sf "$bin/mkosi" "$cand" 2>/dev/null || true; fi
+          done
+          echo "$bin" >> "$GITHUB_PATH"
+          echo "mkosi copies after override:"; which -a mkosi 2>/dev/null || true
+          login_ver="$(bash -lc 'mkosi --version' 2>/dev/null || true)"
+          echo "login-shell mkosi (what build.sh uses): ${login_ver:-unknown} at $(bash -lc 'command -v mkosi' 2>/dev/null)"
+          if ! echo "$login_ver" | grep -qE '2[6-9]|[3-9][0-9]'; then
+            echo "::error::build login shell still resolves mkosi < 26 (${login_ver:-none})" >&2
+            exit 1
+          fi
+
+      - name: Build and upload secure beta image
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          cd "$SDK_DIR"
+          bsp-tools/ci/build-and-upload-release.sh
+
+      - name: Remove ephemeral GitHub token rewrite
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          git config --global --remove-section \
+            "url.https://x-access-token:${GH_TOKEN}@github.com/pamir-ai-pkgs/" || true
+
+      - name: Wipe provisioned signing keys
+        if: always()
+        shell: bash
+        run: |
+          # Covers the FIT boot-chain key set and avb_vbmeta.pem; nothing
+          # else lives in u-boot/keys/ on the runner (both provisioning
+          # steps recreate it from secrets on every run).
+          rm -rf "${SDK_DIR:-/nonexistent}/u-boot/keys" || true
