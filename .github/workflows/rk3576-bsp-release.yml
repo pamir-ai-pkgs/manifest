@@ -409,7 +409,15 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          RK_LAPIS_USER_PASSWORD: ${{ secrets.PAMIR_LAPIS_USER_PASSWORD }}
         run: |
+          # A production image takes the lapis password from this env; when
+          # it is unset the build silently ships the defconfig placeholder,
+          # so fail loud instead.
+          if [ -z "${RK_LAPIS_USER_PASSWORD:-}" ]; then
+            echo "::error::PAMIR_LAPIS_USER_PASSWORD secret is not set" >&2
+            exit 1
+          fi
           # VERSION stays the tag: bundle version must equal the baked
           # IMAGE_VERSION. The -sec prefix and sec-latest.json pointers keep
           # the release lines apart; CHANNEL_POINTER_NAME needs the matching
