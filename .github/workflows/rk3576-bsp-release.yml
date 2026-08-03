@@ -49,7 +49,7 @@ jobs:
       AWS_REGION: eu-north-1
       ARTIFACT_DOWNLOAD_BASE_URL: https://drra50dldpgsz.cloudfront.net
       ARTIFACT_DOWNLOAD_TOKEN: ${{ secrets.PAMIR_ARTIFACT_DOWNLOAD_TOKEN }}
-      DEFCONFIG: rockchip_rk3576_lapis_defconfig
+      DEFCONFIG: rockchip_rk3576_lapis_evt3_defconfig
       MANIFEST_FILE: rk3576-debian-ab.xml
       MANIFEST_URL: https://github.com/pamir-ai-pkgs/manifest
       MIN_FREE_GIB: "50"
@@ -159,7 +159,35 @@ jobs:
           build_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           sdk_dir="${WORK_ROOT%/}/pamir-rk3576-${channel}"
 
+          # Bundles only for tagged builds, where VERSION matches the baked
+          # IMAGE_VERSION; a mismatched bundle reinstall-loops on devices.
+          rauc_bundle=0
+          if [[ "$channel" == "stable" || "$channel" == "candidate" ]]; then
+            rauc_bundle=1
+          fi
+
+          # Secure-leg S3 prefix, mirroring the dev leg's channel layout.
+          sec_s3_prefix=""
+          if [[ "$channel" == "stable" ]]; then
+            sec_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/releases/${version}-sec"
+          elif [[ "$channel" == "candidate" ]]; then
+            sec_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/candidates/${version}-sec/${build_id}"
+          fi
+
+          # Candidates bake the final vX.Y.Z: the mkosi SemVer gate rejects
+          # -rc.N, and rc bundles are published to the dev channel as the
+          # final version. S3 prefixes and the GitHub prerelease keep the
+          # rc name.
+          rk_image_version=""
+          if [[ "$channel" == "candidate" ]]; then
+            rk_image_version="${version#rk3576-}"
+            rk_image_version="${rk_image_version%%-rc.*}"
+          fi
+
           {
+            echo "RAUC_BUNDLE=$rauc_bundle"
+            echo "RK_IMAGE_VERSION=$rk_image_version"
+            echo "SEC_S3_PREFIX=$sec_s3_prefix"
             echo "BUILD_ID=$build_id"
             echo "CHANNEL=$channel"
             echo "MANIFEST_REF=$manifest_ref"
@@ -348,10 +376,10 @@ jobs:
           cd "$SDK_DIR"
           bsp-tools/ci/publish-github-release.sh
 
-      # Secure EVT3 leg: stable releases ship the signed secure image, built
+      # Secure EVT3 leg: tagged builds ship the signed secure image, built
       # serially after the dev leg so its failure cannot block that release.
       - name: Bootstrap secure workspace BSP tools
-        if: env.CHANNEL == 'stable'
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
@@ -361,7 +389,7 @@ jobs:
           manifest-checkout/ci/bootstrap-workspace.sh "$SEC_SDK_DIR"
 
       - name: Stage signing keys into the secure workspace
-        if: env.CHANNEL == 'stable'
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate'
         shell: bash
         run: |
           # Reuse the OTP-verified key set staged above; cp -a keeps the
@@ -377,20 +405,22 @@ jobs:
           cp -a "$SDK_DIR/u-boot/keys/." "$SEC_SDK_DIR/u-boot/keys/"
 
       - name: Build and upload secure release
-        if: env.CHANNEL == 'stable'
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
         run: |
           # VERSION stays the tag: bundle version must equal the baked
-          # IMAGE_VERSION. The -sec prefix and sec-latest.json pointer keep
-          # the release lines apart. No GitHub Release for this leg.
+          # IMAGE_VERSION. The -sec prefix and sec-latest.json pointers keep
+          # the release lines apart; CHANNEL_POINTER_NAME needs the matching
+          # bsp-tools knob. No GitHub Release for this leg.
           cd "$SEC_SDK_DIR"
           SDK_DIR="$SEC_SDK_DIR" \
           DEFCONFIG="$SECURE_DEFCONFIG" \
           STABLE_POINTER_NAME=sec-latest.json \
+          CHANNEL_POINTER_NAME=sec-latest.json \
           RAUC_BUNDLE=1 \
-          S3_PREFIX="s3://${S3_BUCKET}/pamir-rk3576/releases/${VERSION}-sec" \
+          S3_PREFIX="$SEC_S3_PREFIX" \
             bsp-tools/ci/build-and-upload-release.sh
 
       - name: Remove ephemeral GitHub token rewrite
