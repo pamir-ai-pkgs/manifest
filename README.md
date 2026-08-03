@@ -181,20 +181,28 @@ do not add AWS keys to GitHub secrets.
 
 - Push to manifest `main`: build a dev image and upload to
   `s3://distiller-os-release-artifacts/pamir-rk3576/dev/main/<build-id>/`.
-- Tag manifest as `rk3576-vX.Y.Z-rc.N`: build a pinned candidate image, upload
-  to
+- Tag manifest as `rk3576-vX.Y.Z-rc.N`: build a pinned candidate image with
+  its signed RAUC bundle (`lapis-dev-vX.Y.Z-rc.N.raucb`), upload to
   `s3://distiller-os-release-artifacts/pamir-rk3576/candidates/rk3576-vX.Y.Z-rc.N/<build-id>/`,
-  and publish a GitHub prerelease on the manifest repository.
-- Tag manifest as `rk3576-vX.Y.Z`: build a pinned stable image, upload to
+  and publish a GitHub prerelease on the manifest repository. The same run
+  then builds the secure EVT3 image serially, uploading it with
+  `lapis-sec-vX.Y.Z-rc.N.raucb` to
+  `s3://distiller-os-release-artifacts/pamir-rk3576/candidates/rk3576-vX.Y.Z-rc.N-sec/<build-id>/`
+  and moving `channels/candidate/sec-latest.json` (the dev leg moves
+  `channels/candidate/latest.json`).
+- Tag manifest as `rk3576-vX.Y.Z`: build a pinned stable image with its
+  signed RAUC bundle (`lapis-dev-vX.Y.Z.raucb`), upload to
   `s3://distiller-os-release-artifacts/pamir-rk3576/releases/rk3576-vX.Y.Z/`,
   and publish a GitHub release on the manifest repository. The same run then
   builds the secure EVT3 image (`rockchip_rk3576_lapis_evt3_secure_defconfig`)
   serially from the same tag in its own workspace, uploads it with its signed
-  RAUC bundle to
+  RAUC bundle (`lapis-sec-vX.Y.Z.raucb`) to
   `s3://distiller-os-release-artifacts/pamir-rk3576/releases/rk3576-vX.Y.Z-sec/`,
   and moves only the `releases/sec-latest.json` pointer; the dev-facing
   release moves `releases/dev-latest.json`. Stable manual dispatches run the
-  secure leg as well.
+  secure leg as well. RAUC bundles are staged only for tagged builds, where
+  the bundle version matches the image's baked `IMAGE_VERSION`; untagged
+  dev/scratch builds stage none.
 - Manual dispatch: build `scratch`, `dev`, `candidate`, or `stable` from a
   selected manifest ref. Candidate and stable dispatches must build the same
   existing manifest tag they publish.
