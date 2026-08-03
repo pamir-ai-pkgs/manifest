@@ -56,6 +56,7 @@ jobs:
       PRE_COMMIT_HOME: /srv/bsp/pre-commit-cache
       REPO_MIRROR: /srv/bsp/repo-mirror
       S3_BUCKET: distiller-os-release-artifacts
+      SECURE_DEFCONFIG: rockchip_rk3576_lapis_evt3_secure_defconfig
       UV_CACHE_DIR: /srv/bsp/uv-cache
       WORK_ROOT: /srv/bsp/workspaces
       XDG_CACHE_HOME: /srv/bsp/cache
@@ -163,6 +164,7 @@ jobs:
             echo "CHANNEL=$channel"
             echo "MANIFEST_REF=$manifest_ref"
             echo "SDK_DIR=$sdk_dir"
+            echo "SEC_SDK_DIR=${WORK_ROOT%/}/pamir-rk3576-secure"
             echo "VERSION=${version:-rk3576-${channel}-${build_id}}"
           } >>"$GITHUB_ENV"
 
@@ -171,43 +173,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
         run: |
-          mkdir -p "$SDK_DIR" "$UV_CACHE_DIR" "$XDG_CACHE_HOME" "$PRE_COMMIT_HOME" "$REPO_MIRROR"
-          cd "$SDK_DIR"
+          mkdir -p "$UV_CACHE_DIR" "$XDG_CACHE_HOME" "$PRE_COMMIT_HOME" "$REPO_MIRROR"
           python3 --version
-          repo_init_args=()
-          if [[ -d "$REPO_MIRROR/.repo" && "$MANIFEST_REF" != refs/tags/* ]]; then
-            repo_init_args+=(--reference="$REPO_MIRROR")
-          fi
-          if [[ "$MANIFEST_REF" == refs/tags/* && -d .repo/manifests ]]; then
-            git -C .repo/manifests fetch --force "$MANIFEST_URL" \
-              "$MANIFEST_REF:$MANIFEST_REF"
-          fi
-          repo init -u "$MANIFEST_URL" -b "$MANIFEST_REF" -m "$MANIFEST_FILE" \
-            "${repo_init_args[@]}"
-          if [[ "$MANIFEST_REF" == refs/tags/* ]] &&
-            git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
-            component_tag_ref="$MANIFEST_REF"
-            if [[ "$component_tag_ref" == refs/tags/rk3576-* ]]; then
-              component_tag_ref="refs/tags/${component_tag_ref#refs/tags/rk3576-}"
-            fi
-            mapfile -t bsp_tools_remotes < <(git -C bsp-tools remote)
-            bsp_tools_remote="${bsp_tools_remotes[0]:-}"
-            if [[ -z "$bsp_tools_remote" ]]; then
-              echo "bsp-tools checkout has no git remote" >&2
-              exit 1
-            fi
-            git -C bsp-tools fetch --force "$bsp_tools_remote" \
-              "$component_tag_ref:$component_tag_ref"
-            component_tag_commit="$(git -C bsp-tools rev-parse "${component_tag_ref}^{}")"
-            git -C bsp-tools update-ref "$component_tag_ref" "$component_tag_commit"
-          fi
-          if git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
-            git -C bsp-tools reset --hard
-            git -C bsp-tools clean -fdx
-          fi
-          repo sync -j"$(nproc)" --current-branch --optimized-fetch \
-            --prune --fail-fast --verify bsp-tools
-          uv --project bsp-tools sync --python /usr/bin/python3 --group dev --locked
+          manifest-checkout/ci/bootstrap-workspace.sh "$SDK_DIR"
 
       - name: Clean stale BSP outputs
         shell: bash
@@ -380,6 +348,51 @@ jobs:
           cd "$SDK_DIR"
           bsp-tools/ci/publish-github-release.sh
 
+      # Secure EVT3 leg: stable releases ship the signed secure image, built
+      # serially after the dev leg so its failure cannot block that release.
+      - name: Bootstrap secure workspace BSP tools
+        if: env.CHANNEL == 'stable'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          # Separate workspace: mk-rauc-bundle.sh resolves the firmware dir
+          # relative to the invoking bsp-tools checkout.
+          manifest-checkout/ci/bootstrap-workspace.sh "$SEC_SDK_DIR"
+
+      - name: Stage signing keys into the secure workspace
+        if: env.CHANNEL == 'stable'
+        shell: bash
+        run: |
+          # Reuse the OTP-verified key set staged above; cp -a keeps the
+          # private_key.pem/public_key.pem symlinks.
+          if [ ! -s "$SDK_DIR/u-boot/keys/dev.pubkey" ] ||
+            [ ! -s "$SDK_DIR/u-boot/keys/avb_vbmeta.pem" ]; then
+            echo "::error::validated signing keys are missing from" \
+              "$SDK_DIR/u-boot/keys" >&2
+            exit 1
+          fi
+          rm -rf "$SEC_SDK_DIR/u-boot/keys"
+          install -d -m 0700 "$SEC_SDK_DIR/u-boot/keys"
+          cp -a "$SDK_DIR/u-boot/keys/." "$SEC_SDK_DIR/u-boot/keys/"
+
+      - name: Build and upload secure release
+        if: env.CHANNEL == 'stable'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          # VERSION stays the tag: bundle version must equal the baked
+          # IMAGE_VERSION. The -sec prefix and sec-latest.json pointer keep
+          # the release lines apart. No GitHub Release for this leg.
+          cd "$SEC_SDK_DIR"
+          SDK_DIR="$SEC_SDK_DIR" \
+          DEFCONFIG="$SECURE_DEFCONFIG" \
+          STABLE_POINTER_NAME=sec-latest.json \
+          RAUC_BUNDLE=1 \
+          S3_PREFIX="s3://${S3_BUCKET}/pamir-rk3576/releases/${VERSION}-sec" \
+            bsp-tools/ci/build-and-upload-release.sh
+
       - name: Remove ephemeral GitHub token rewrite
         if: always()
         shell: bash
@@ -393,7 +406,7 @@ jobs:
         if: always()
         shell: bash
         run: |
-          # Covers the FIT boot-chain key set and avb_vbmeta.pem; nothing
-          # else lives in u-boot/keys/ on the runner (both provisioning
-          # steps recreate it from secrets on every run).
-          rm -rf "${SDK_DIR:-/nonexistent}/u-boot/keys" || true
+          # Both workspaces' u-boot/keys; the provisioning steps recreate
+          # them from secrets on every run.
+          rm -rf "${SDK_DIR:-/nonexistent}/u-boot/keys" \
+            "${SEC_SDK_DIR:-/nonexistent}/u-boot/keys" || true

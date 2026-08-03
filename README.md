@@ -187,7 +187,14 @@ do not add AWS keys to GitHub secrets.
   and publish a GitHub prerelease on the manifest repository.
 - Tag manifest as `rk3576-vX.Y.Z`: build a pinned stable image, upload to
   `s3://distiller-os-release-artifacts/pamir-rk3576/releases/rk3576-vX.Y.Z/`,
-  and publish a GitHub release on the manifest repository.
+  and publish a GitHub release on the manifest repository. The same run then
+  builds the secure EVT3 image (`rockchip_rk3576_lapis_evt3_secure_defconfig`)
+  serially from the same tag in its own workspace, uploads it with its signed
+  RAUC bundle to
+  `s3://distiller-os-release-artifacts/pamir-rk3576/releases/rk3576-vX.Y.Z-sec/`,
+  and moves only the `releases/sec-latest.json` pointer; the dev-facing
+  release moves `releases/dev-latest.json`. Stable manual dispatches run the
+  secure leg as well.
 - Manual dispatch: build `scratch`, `dev`, `candidate`, or `stable` from a
   selected manifest ref. Candidate and stable dispatches must build the same
   existing manifest tag they publish.
@@ -205,7 +212,9 @@ GitHub Release body and artifact inventory.
 Source checkout caching is runner-local, not stored in GitHub Actions cache.
 The self-hosted runner keeps a persistent `repo --mirror` checkout at
 `/srv/bsp/repo-mirror` and channel workspaces under
-`/srv/bsp/workspaces/pamir-rk3576-<channel>`. The release driver refreshes the
+`/srv/bsp/workspaces/pamir-rk3576-<channel>`; the secure EVT3 leg builds in
+its own `pamir-rk3576-secure` workspace so its firmware and RAUC bundle can
+never pick up the dev leg's outputs. The release driver refreshes the
 mirror first, then initializes the workspace with
 `--reference=/srv/bsp/repo-mirror` and runs `repo sync --current-branch
 --fetch-submodules --optimized-fetch --prune --fail-fast --verify`. If a

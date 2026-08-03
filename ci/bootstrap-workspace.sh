@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# Initialize a BSP workspace and sync only bsp-tools into it, so the release
+# driver (bsp-tools/ci/build-and-upload-release.sh) can take over. Both the
+# dev and secure release legs bootstrap their workspaces through this script.
+#
+# It lives in the manifest repo rather than bsp-tools because it runs before
+# any bsp-tools checkout exists in the workspace; the workflow invokes it from
+# its own manifest checkout.
+#
+# Usage: bootstrap-workspace.sh <workspace-dir>
+# Env:   MANIFEST_URL, MANIFEST_FILE, MANIFEST_REF, REPO_MIRROR
+
+set -euo pipefail
+
+workspace="${1:?usage: bootstrap-workspace.sh <workspace-dir>}"
+manifest_url="${MANIFEST_URL:?MANIFEST_URL is required}"
+manifest_file="${MANIFEST_FILE:?MANIFEST_FILE is required}"
+manifest_ref="${MANIFEST_REF:?MANIFEST_REF is required}"
+repo_mirror="${REPO_MIRROR:?REPO_MIRROR is required}"
+
+mkdir -p "$workspace"
+cd "$workspace"
+
+repo_init_args=()
+if [[ -d "$repo_mirror/.repo" && "$manifest_ref" != refs/tags/* ]]; then
+	repo_init_args+=(--reference="$repo_mirror")
+fi
+if [[ "$manifest_ref" == refs/tags/* && -d .repo/manifests ]]; then
+	git -C .repo/manifests fetch --force "$manifest_url" \
+		"$manifest_ref:$manifest_ref"
+fi
+repo init -u "$manifest_url" -b "$manifest_ref" -m "$manifest_file" \
+	"${repo_init_args[@]}"
+
+# For tag builds, repo resolves component refs from the project checkout's
+# local refs; refresh the bsp-tools component tag so a stale or moved tag
+# cached in the persistent workspace cannot win over the remote.
+if [[ "$manifest_ref" == refs/tags/* ]] &&
+	git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
+	component_tag_ref="$manifest_ref"
+	if [[ "$component_tag_ref" == refs/tags/rk3576-* ]]; then
+		component_tag_ref="refs/tags/${component_tag_ref#refs/tags/rk3576-}"
+	fi
+	mapfile -t bsp_tools_remotes < <(git -C bsp-tools remote)
+	bsp_tools_remote="${bsp_tools_remotes[0]:-}"
+	if [[ -z "$bsp_tools_remote" ]]; then
+		echo "bsp-tools checkout has no git remote" >&2
+		exit 1
+	fi
+	git -C bsp-tools fetch --force "$bsp_tools_remote" \
+		"$component_tag_ref:$component_tag_ref"
+	component_tag_commit="$(git -C bsp-tools rev-parse "${component_tag_ref}^{}")"
+	git -C bsp-tools update-ref "$component_tag_ref" "$component_tag_commit"
+fi
+if git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
+	git -C bsp-tools reset --hard
+	git -C bsp-tools clean -fdx
+fi
+repo sync -j"$(nproc)" --current-branch --optimized-fetch \
+	--prune --fail-fast --verify bsp-tools
+uv --project bsp-tools sync --python /usr/bin/python3 --group dev --locked
