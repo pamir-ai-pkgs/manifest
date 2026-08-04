@@ -16,6 +16,7 @@
   <project name="lapis-ota" path="external/lapis-ota" revision="refs/tags/v0.0.7"/>
   <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="refs/tags/v0.0.7"/>
   <project name="lapis-healthd" path="external/lapis-healthd" revision="refs/tags/v0.0.7"/>
+  <project name="lapis-telemetryd" path="external/lapis-telemetryd" revision="ae9430e7cde11108a734bcd1ae8b000895d995ab" upstream="refs/heads/main" dest-branch="main"/>
   <project name="lapis" path="external/lapis" revision="17486c7d3861cee29ca0cc7954c788a52853877d" upstream="refs/heads/agent/offline-nix-oobe" dest-branch="agent/offline-nix-oobe"/>
   <!-- factory-only OTP tool; pinned at sha until the next lockstep tag includes it -->
   <project name="lapis-fgprov" path="external/lapis-fgprov" revision="refs/tags/v0.0.7"/>
