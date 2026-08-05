@@ -410,6 +410,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
           RK_LAPIS_USER_PASSWORD: ${{ secrets.PAMIR_LAPIS_USER_PASSWORD }}
+          LAPIS_CF_ACCESS_SIT: ${{ secrets.PAMIR_LAPIS_CF_ACCESS_SIT }}
         run: |
           # A production image takes the lapis password from this env; when
           # it is unset the build silently ships the defconfig placeholder,
@@ -418,6 +419,22 @@ jobs:
             echo "::error::PAMIR_LAPIS_USER_PASSWORD secret is not set" >&2
             exit 1
           fi
+          # The secure leg polls the SIT nix channel (device-rockchip#26), so
+          # its bootstrap seed fetch needs the sit CF Access service token.
+          # Staged through mkosi's hardened RK_LAPIS_CF_ACCESS_FILE input
+          # (0700 tmpfs dir, 0600 file, strict JSON contract) — never through
+          # Kconfig strings, so no token enters git history. Fail loud when
+          # absent: without it the leg would ride the in-tree dev token and
+          # 401 against manifests/sit at seed-fetch time.
+          if [ -z "${LAPIS_CF_ACCESS_SIT:-}" ]; then
+            echo "::error::PAMIR_LAPIS_CF_ACCESS_SIT secret is not set" >&2
+            exit 1
+          fi
+          cfdir=$(mktemp -d -p /dev/shm)
+          trap 'rm -rf "$cfdir"' EXIT
+          chmod 0700 "$cfdir"
+          (umask 077; printf '%s' "$LAPIS_CF_ACCESS_SIT" > "$cfdir/cf-access.json")
+          export RK_LAPIS_CF_ACCESS_FILE="$cfdir/cf-access.json"
           # VERSION stays the tag: bundle version must equal the baked
           # IMAGE_VERSION. The -sec prefix and sec-latest.json pointers keep
           # the release lines apart; CHANNEL_POINTER_NAME needs the matching
