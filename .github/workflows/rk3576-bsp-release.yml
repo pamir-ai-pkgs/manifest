@@ -2,8 +2,6 @@ name: RK3576 BSP Release
 
 on:
   push:
-    branches:
-      - main
     tags:
       - rk3576-v*
   workflow_dispatch:
@@ -438,7 +436,7 @@ jobs:
           # VERSION stays the tag: bundle version must equal the baked
           # IMAGE_VERSION. The -sec prefix and sec-latest.json pointers keep
           # the release lines apart; CHANNEL_POINTER_NAME needs the matching
-          # bsp-tools knob. No GitHub Release for this leg.
+          # bsp-tools knob.
           cd "$SEC_SDK_DIR"
           SDK_DIR="$SEC_SDK_DIR" \
           DEFCONFIG="$SECURE_DEFCONFIG" \
@@ -447,6 +445,19 @@ jobs:
           RAUC_BUNDLE=1 \
           S3_PREFIX="$SEC_S3_PREFIX" \
             bsp-tools/ci/build-and-upload-release.sh
+
+      - name: Attach secure artifacts to the GitHub release
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RELEASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          cd "$SEC_SDK_DIR"
+          SDK_DIR="$SEC_SDK_DIR" \
+          ASSET_NAME_SUFFIX=-secure \
+          RELEASE_NOTES_MODE=append \
+            bsp-tools/ci/publish-github-release.sh
 
       - name: Remove ephemeral GitHub token rewrite
         if: always()
