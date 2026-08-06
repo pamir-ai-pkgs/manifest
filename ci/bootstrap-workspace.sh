@@ -58,5 +58,5 @@ if git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
 	git -C bsp-tools clean -fdx
 fi
 repo sync -j"$(nproc)" --current-branch --optimized-fetch \
-	--prune --fail-fast --verify bsp-tools
+	--prune --force-remove-dirty --fail-fast --verify bsp-tools
 uv --project bsp-tools sync --python /usr/bin/python3 --group dev --locked
