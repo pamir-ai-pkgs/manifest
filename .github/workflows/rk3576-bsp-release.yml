@@ -241,7 +241,9 @@ jobs:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
         run: |
           cd "$SDK_DIR"
-          rm -rf output rockdev
+          # Stale outputs can carry root-owned files (mkosi runs as root)
+          # and read-only Go module caches; a plain rm cannot clear either.
+          sudo rm -rf output rockdev
           bsp-tools/ci/preflight-runner.sh
 
       - name: Provision FIT boot-chain signing keys
@@ -372,7 +374,15 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          FLEET_TOKEN_SET: ${{ secrets.PAMIR_FLEET_TOKEN_SET }}
         run: |
+          # The release driver bakes the newest fleet OTA token from this
+          # env; the runner has no cross-account Secrets Manager access, so
+          # an unset secret must fail here, not ship a tokenless image.
+          if [ -z "${FLEET_TOKEN_SET:-}" ]; then
+            echo "::error::PAMIR_FLEET_TOKEN_SET secret is not set" >&2
+            exit 1
+          fi
           cd "$SDK_DIR"
           bsp-tools/ci/build-and-upload-release.sh
 
@@ -420,12 +430,19 @@ jobs:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
           RK_LAPIS_USER_PASSWORD: ${{ secrets.PAMIR_LAPIS_USER_PASSWORD }}
           LAPIS_CF_ACCESS_SIT: ${{ secrets.PAMIR_LAPIS_CF_ACCESS_SIT }}
+          FLEET_TOKEN_SET: ${{ secrets.PAMIR_FLEET_TOKEN_SET }}
         run: |
           # A production image takes the lapis password from this env; when
           # it is unset the build silently ships the defconfig placeholder,
           # so fail loud instead.
           if [ -z "${RK_LAPIS_USER_PASSWORD:-}" ]; then
             echo "::error::PAMIR_LAPIS_USER_PASSWORD secret is not set" >&2
+            exit 1
+          fi
+          # The release driver bakes the fleet OTA token from this env
+          # (no cross-account Secrets Manager access on the runner).
+          if [ -z "${FLEET_TOKEN_SET:-}" ]; then
+            echo "::error::PAMIR_FLEET_TOKEN_SET secret is not set" >&2
             exit 1
           fi
           # The secure leg polls the SIT nix channel (device-rockchip#26), so
