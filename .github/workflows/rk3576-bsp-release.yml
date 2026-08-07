@@ -221,6 +221,12 @@ jobs:
       - name: Validate release tooling
         shell: bash
         run: |
+          # The tooling self-tests build ext4 fixture images; the runner
+          # service PATH lacks the sbin dirs where mkfs.ext4 lives.
+          export PATH="$PATH:/usr/sbin:/sbin"
+          if ! command -v mkfs.ext4 >/dev/null; then
+            sudo apt-get install -y e2fsprogs
+          fi
           cd "$SDK_DIR/bsp-tools"
           uv run --locked pre-commit run --all-files
 
