@@ -38,9 +38,24 @@ repo init -u "$manifest_url" -b "$manifest_ref" -m "$manifest_file" \
 # cached in the persistent workspace cannot win over the remote.
 if [[ "$manifest_ref" == refs/tags/* ]] &&
 	git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
-	component_tag_ref="$manifest_ref"
-	if [[ "$component_tag_ref" == refs/tags/rk3576-* ]]; then
-		component_tag_ref="refs/tags/${component_tag_ref#refs/tags/rk3576-}"
+	# The component pin lives in the manifest XML, not in the manifest tag
+	# name: rc candidates are tagged rk3576-vX.Y.Z-rc.N while components
+	# stay at vX.Y.Z, so deriving the ref from the tag string breaks on
+	# every rc build. Read the bsp-tools revision from the pinned manifest.
+	component_tag_ref="$(python3 - ".repo/manifests/$manifest_file" <<-'PY'
+		import sys
+		import xml.etree.ElementTree as ET
+
+		root = ET.parse(sys.argv[1]).getroot()
+		for project in root.iter("project"):
+		    if project.get("path") == "bsp-tools":
+		        print(project.get("revision", ""))
+		        break
+		PY
+	)"
+	if [[ "$component_tag_ref" != refs/tags/* ]]; then
+		echo "bsp-tools revision in $manifest_file is not a tag ref: '$component_tag_ref'" >&2
+		exit 1
 	fi
 	mapfile -t bsp_tools_remotes < <(git -C bsp-tools remote)
 	bsp_tools_remote="${bsp_tools_remotes[0]:-}"
