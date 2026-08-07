@@ -203,6 +203,14 @@ jobs:
           python3 --version
           manifest-checkout/ci/bootstrap-workspace.sh "$SDK_DIR"
 
+      - name: Converge runner build deps
+        shell: bash
+        run: |
+          # bsp-tools owns the runner dependency list; converge the host to
+          # it so a dep added on main (e.g. rauc for bundle builds) cannot
+          # outrun the runner AMI. Idempotent once installed.
+          sudo WORK_ROOT=/srv/bsp "$SDK_DIR/bsp-tools/ci/bootstrap-debian-runner.sh"
+
       - name: Clean stale BSP outputs
         shell: bash
         run: |
@@ -224,9 +232,6 @@ jobs:
           # The tooling self-tests build ext4 fixture images; the runner
           # service PATH lacks the sbin dirs where mkfs.ext4 lives.
           export PATH="$PATH:/usr/sbin:/sbin"
-          if ! command -v mkfs.ext4 >/dev/null; then
-            sudo apt-get install -y e2fsprogs
-          fi
           cd "$SDK_DIR/bsp-tools"
           uv run --locked pre-commit run --all-files
 
