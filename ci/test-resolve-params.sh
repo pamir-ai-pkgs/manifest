@@ -48,7 +48,7 @@ resolve() {
 	(
 		set -e
 		export GITHUB_ENV="$outfile"
-		export S3_BUCKET="${S3_BUCKET:-distiller-os-release-artifacts}"
+		export S3_BUCKET="${S3_BUCKET:-lapis-os-artifacts}"
 		export WORK_ROOT="${WORK_ROOT:-/srv/bsp/workspaces}"
 		export GITHUB_RUN_ID="${GITHUB_RUN_ID:-12345}"
 		export GITHUB_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
@@ -96,7 +96,7 @@ scenario() {
 
 	local devp
 	devp="$(dev_prefix "$channel" "$version" "$build_id" "$manifest_ref" \
-		"${S3_BUCKET:-distiller-os-release-artifacts}")"
+		"${S3_BUCKET:-lapis-os-artifacts}")"
 
 	if [[ "$expect_secure" == "yes" ]]; then
 		if [[ -z "$sec_prefix" ]]; then
