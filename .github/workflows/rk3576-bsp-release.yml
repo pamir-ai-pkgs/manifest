@@ -45,7 +45,7 @@ jobs:
     env:
       AWS_DEFAULT_REGION: eu-north-1
       AWS_REGION: eu-north-1
-      ARTIFACT_DOWNLOAD_BASE_URL: https://drra50dldpgsz.cloudfront.net
+      ARTIFACT_DOWNLOAD_BASE_URL: https://d16xxnueu5edhn.cloudfront.net
       ARTIFACT_DOWNLOAD_TOKEN: ${{ secrets.PAMIR_ARTIFACT_DOWNLOAD_TOKEN }}
       DEFCONFIG: rockchip_rk3576_lapis_evt3_defconfig
       MANIFEST_FILE: rk3576-debian-ab.xml
@@ -53,7 +53,7 @@ jobs:
       MIN_FREE_GIB: "50"
       PRE_COMMIT_HOME: /srv/bsp/pre-commit-cache
       REPO_MIRROR: /srv/bsp/repo-mirror
-      S3_BUCKET: distiller-os-release-artifacts
+      S3_BUCKET: lapis-os-artifacts
       SECURE_DEFCONFIG: rockchip_rk3576_lapis_evt3_secure_defconfig
       UV_CACHE_DIR: /srv/bsp/uv-cache
       WORK_ROOT: /srv/bsp/workspaces
