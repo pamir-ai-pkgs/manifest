@@ -376,7 +376,8 @@ jobs:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
         run: |
           cd "$SDK_DIR"
-          bsp-tools/ci/build-and-upload-release.sh
+          RAUC_BUNDLE=1 \
+            bsp-tools/ci/build-and-upload-release.sh
 
       - name: Publish GitHub release
         shell: bash
