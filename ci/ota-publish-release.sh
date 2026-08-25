@@ -4,6 +4,7 @@
 # bsp-tools/ota-publish. Both release legs share this: the dev leg publishes
 # lapis-dev-<ver>.raucb to the dev channel dev images poll, the secure leg
 # lapis-sec-<ver>.raucb to the sit channel secure images poll.
+# The leg's uboot.img rides along as the release's standalone U-Boot image.
 #
 # Only run this script for final release tags (rk3576-vX.Y.Z); candidates
 # keep their rc name and stay on the artifact bucket. The release is live for
@@ -50,6 +51,12 @@ if [[ ${#bundles[@]} -ne 1 ]]; then
 fi
 bundle="${bundles[0]}"
 
+uboot="${sdk_dir%/}/output/firmware/uboot.img"
+if [[ ! -f "$uboot" ]]; then
+	echo "::error::U-Boot image missing: $uboot" >&2
+	exit 1
+fi
+
 # The bundle version must be the release being registered, or devices
 # would install one version and report another.
 if ! info="$(rauc info --no-verify --output-format=shell "$bundle" 2>&1)"; then
@@ -80,6 +87,7 @@ fi
 
 ota-publish publish \
 	--bundle "$bundle" \
+	--uboot "$uboot" \
 	--board lapis \
 	--channel "$channel" \
 	--version "$version" \
