@@ -53,20 +53,25 @@ if [[ "$manifest_ref" == refs/tags/* ]] &&
 		        break
 		PY
 	)"
-	if [[ "$component_tag_ref" != refs/tags/* ]]; then
-		echo "bsp-tools revision in $manifest_file is not a tag ref: '$component_tag_ref'" >&2
+	if [[ "$component_tag_ref" =~ ^[0-9a-f]{40}$ ]]; then
+		# Nightly manifests pin every project to a commit; a commit cannot
+		# move, so there is nothing stale to refresh.
+		:
+	elif [[ "$component_tag_ref" != refs/tags/* ]]; then
+		echo "bsp-tools revision in $manifest_file is not a tag ref or commit: '$component_tag_ref'" >&2
 		exit 1
+	else
+		mapfile -t bsp_tools_remotes < <(git -C bsp-tools remote)
+		bsp_tools_remote="${bsp_tools_remotes[0]:-}"
+		if [[ -z "$bsp_tools_remote" ]]; then
+			echo "bsp-tools checkout has no git remote" >&2
+			exit 1
+		fi
+		git -C bsp-tools fetch --force "$bsp_tools_remote" \
+			"$component_tag_ref:$component_tag_ref"
+		component_tag_commit="$(git -C bsp-tools rev-parse "${component_tag_ref}^{}")"
+		git -C bsp-tools update-ref "$component_tag_ref" "$component_tag_commit"
 	fi
-	mapfile -t bsp_tools_remotes < <(git -C bsp-tools remote)
-	bsp_tools_remote="${bsp_tools_remotes[0]:-}"
-	if [[ -z "$bsp_tools_remote" ]]; then
-		echo "bsp-tools checkout has no git remote" >&2
-		exit 1
-	fi
-	git -C bsp-tools fetch --force "$bsp_tools_remote" \
-		"$component_tag_ref:$component_tag_ref"
-	component_tag_commit="$(git -C bsp-tools rev-parse "${component_tag_ref}^{}")"
-	git -C bsp-tools update-ref "$component_tag_ref" "$component_tag_commit"
 fi
 if git -C bsp-tools rev-parse --git-dir >/dev/null 2>&1; then
 	git -C bsp-tools reset --hard

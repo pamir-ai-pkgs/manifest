@@ -38,6 +38,9 @@ dev_prefix() {
 	stable) printf 's3://%s/pamir-rk3576/releases/%s\n' "$bucket" "$version" ;;
 	candidate) printf 's3://%s/pamir-rk3576/candidates/%s/%s\n' "$bucket" "$version" "$build_id" ;;
 	scratch) printf 's3://%s/pamir-rk3576/scratch/%s/%s\n' "$bucket" "$safe_ref" "$build_id" ;;
+	# The driver knows no nightly channel; the workflow passes this prefix
+	# explicitly via DEV_S3_PREFIX.
+	nightly) printf 's3://%s/pamir-rk3576/nightly/%s/%s\n' "$bucket" "$version" "$build_id" ;;
 	*) printf 's3://%s/pamir-rk3576/dev/%s/%s\n' "$bucket" "$safe_ref" "$build_id" ;;
 	esac
 }
@@ -81,11 +84,14 @@ scenario() {
 	fi
 
 	local channel version build_id manifest_ref sec_prefix sdk_dir sec_sdk_dir rauc
+	local dev_prefix_out image_version
 	channel="$(printf '%s\n' "$env_out" | awk -F= '/^CHANNEL=/{print substr($0,9)}')"
 	version="$(printf '%s\n' "$env_out" | awk -F= '/^VERSION=/{print substr($0,9)}')"
 	build_id="$(printf '%s\n' "$env_out" | awk '/^BUILD_ID=/{print substr($0,10)}')"
 	manifest_ref="$(printf '%s\n' "$env_out" | awk '/^MANIFEST_REF=/{print substr($0,14)}')"
 	sec_prefix="$(printf '%s\n' "$env_out" | awk '/^SEC_S3_PREFIX=/{print substr($0,15)}')"
+	dev_prefix_out="$(printf '%s\n' "$env_out" | awk '/^DEV_S3_PREFIX=/{print substr($0,15)}')"
+	image_version="$(printf '%s\n' "$env_out" | awk '/^RK_IMAGE_VERSION=/{print substr($0,18)}')"
 	sdk_dir="$(printf '%s\n' "$env_out" | awk '/^SDK_DIR=/{print substr($0,9)}')"
 	sec_sdk_dir="$(printf '%s\n' "$env_out" | awk '/^SEC_SDK_DIR=/{print substr($0,13)}')"
 	rauc="$(printf '%s\n' "$env_out" | awk '/^RAUC_BUNDLE=/{print substr($0,13)}')"
@@ -97,6 +103,21 @@ scenario() {
 	local devp
 	devp="$(dev_prefix "$channel" "$version" "$build_id" "$manifest_ref" \
 		"${S3_BUCKET:-lapis-os-artifacts}")"
+
+	# Only nightly overrides the driver's dev-leg prefix, and it must match
+	# the layout the prune job deletes by tag.
+	if [[ "$channel" == "nightly" ]]; then
+		if [[ "$dev_prefix_out" == "$devp" ]]; then ok; else
+			fail "$desc: DEV_S3_PREFIX is '$dev_prefix_out', expected '$devp'"
+		fi
+		if [[ "$image_version" == "${version#rk3576-}" ]]; then ok; else
+			fail "$desc: RK_IMAGE_VERSION is '$image_version', expected the nightly prerelease '${version#rk3576-}'"
+		fi
+	elif [[ -n "$dev_prefix_out" ]]; then
+		fail "$desc: DEV_S3_PREFIX=$dev_prefix_out would move the dev leg off the driver's channel layout"
+	else
+		ok
+	fi
 
 	if [[ "$expect_secure" == "yes" ]]; then
 		if [[ -z "$sec_prefix" ]]; then
@@ -122,7 +143,7 @@ scenario() {
 		fi
 	fi
 
-	if [[ "$rauc" == "1" && "$channel" != "stable" && "$channel" != "candidate" ]]; then
+	if [[ "$rauc" == "1" && "$channel" != "stable" && "$channel" != "candidate" && "$channel" != "nightly" ]]; then
 		fail "$desc: RAUC_BUNDLE=1 on channel '$channel', but only tagged builds bake a canonical IMAGE_VERSION"
 	else
 		ok
@@ -181,6 +202,24 @@ GITHUB_EVENT_NAME=workflow_dispatch GITHUB_REF_TYPE=branch GITHUB_REF_NAME=main 
 	DISPATCH_CHANNEL=candidate DISPATCH_MANIFEST_REF=refs/tags/rk3576-v0.0.8 \
 	DISPATCH_VERSION=rk3576-v0.0.8 \
 	scenario 'dispatch candidate given a stable version' REJECT no
+
+GITHUB_EVENT_NAME=push GITHUB_REF_TYPE=tag GITHUB_REF_NAME=rk3576-v0.2.0-nightly.3 \
+	DISPATCH_CHANNEL= DISPATCH_MANIFEST_REF= DISPATCH_VERSION= \
+	scenario 'push nightly tag' nightly yes
+
+GITHUB_EVENT_NAME=workflow_dispatch GITHUB_REF_TYPE=branch GITHUB_REF_NAME=main \
+	DISPATCH_CHANNEL=nightly DISPATCH_MANIFEST_REF=refs/tags/rk3576-v0.2.0-nightly.3 \
+	DISPATCH_VERSION= \
+	scenario 'dispatch nightly rebuild' nightly yes
+
+GITHUB_EVENT_NAME=workflow_dispatch GITHUB_REF_TYPE=branch GITHUB_REF_NAME=main \
+	DISPATCH_CHANNEL=nightly DISPATCH_MANIFEST_REF=main DISPATCH_VERSION= \
+	scenario 'dispatch nightly from a branch' REJECT no
+
+GITHUB_EVENT_NAME=workflow_dispatch GITHUB_REF_TYPE=branch GITHUB_REF_NAME=main \
+	DISPATCH_CHANNEL=stable DISPATCH_MANIFEST_REF=refs/tags/rk3576-v0.2.0-nightly.3 \
+	DISPATCH_VERSION=rk3576-v0.2.0-nightly.3 \
+	scenario 'dispatch stable given a nightly version' REJECT no
 
 if [[ -n "$release_driver" ]]; then
 	printf '\nCross-checking the dev prefix expectations against %s\n' "$release_driver"

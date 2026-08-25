@@ -39,7 +39,7 @@ new_steps.append(
         "shell": "bash",
         "run": (
             'for k in CHANNEL VERSION MANIFEST_REF BUILD_ID SDK_DIR SEC_SDK_DIR '
-            'SEC_S3_PREFIX RAUC_BUNDLE RK_IMAGE_VERSION; do\n'
+            'DEV_S3_PREFIX SEC_S3_PREFIX RAUC_BUNDLE RK_IMAGE_VERSION; do\n'
             '  printf "RESOLVED::%s=%s\\n" "$k" "${!k-<unset>}"\n'
             "done\n"
         ),
