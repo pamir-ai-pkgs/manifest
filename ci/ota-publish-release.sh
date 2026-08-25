@@ -6,8 +6,9 @@
 # lapis-sec-<ver>.raucb to the sit channel secure images poll.
 # The leg's uboot.img rides along as the release's standalone U-Boot image.
 #
-# Only run this script for final release tags (rk3576-vX.Y.Z); candidates
-# keep their rc name and stay on the artifact bucket. The release is live for
+# Only run this script for final release tags (rk3576-vX.Y.Z) and, on the
+# dev channel only, nightly tags (rk3576-vX.Y.Z-nightly.N); candidates keep
+# their rc name and stay on the artifact bucket. The release is live for
 # devices the moment the DynamoDB item lands.
 #
 # Usage: ota-publish-release.sh <sdk-dir> <channel>
@@ -35,9 +36,21 @@ done
 
 # rk3576-v0.1.0 -> 0.1.0: the server keys releases on a bare
 # MAJOR.MINOR.PATCH; devices normalize their v-prefixed IMAGE_VERSION to the
-# same form on the wire.
+# same form on the wire. Nightlies keep their prerelease suffix
+# (0.2.0-nightly.3) and are only ever registered on the dev channel: sit and
+# prod receive on-demand final releases, never a nightly.
 version="${release_tag#rk3576-v}"
-if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+release_regex='^[0-9]+\.[0-9]+\.[0-9]+$'
+nightly_regex='^[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]+$'
+if [[ "$version" =~ $release_regex ]]; then
+	:
+elif [[ "$version" =~ $nightly_regex ]]; then
+	if [[ "$channel" != "dev" ]]; then
+		echo "::error::refusing to publish nightly $release_tag to channel $channel;" \
+			"nightlies go to dev only" >&2
+		exit 1
+	fi
+else
 	echo "::error::refusing to publish non-release version $release_tag" >&2
 	exit 1
 fi
@@ -63,7 +76,7 @@ if ! info="$(rauc info --no-verify --output-format=shell "$bundle" 2>&1)"; then
 	echo "::error::rauc info failed for $bundle: $info" >&2
 	exit 1
 fi
-bundle_version="$(sed -nE "s/^RAUC_MF_VERSION='?(v?[0-9.]+)'?$/\\1/p" <<<"$info")"
+bundle_version="$(sed -nE "s/^RAUC_MF_VERSION='?(v?[0-9A-Za-z.-]+)'?$/\\1/p" <<<"$info")"
 if [[ "${bundle_version#v}" != "$version" ]]; then
 	echo "::error::bundle $bundle carries version '${bundle_version:-unknown}'," \
 		"not release $version" >&2

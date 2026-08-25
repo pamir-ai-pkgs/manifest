@@ -130,6 +130,26 @@ check_case() {
 			ok
 		fi
 	fi
+
+	local dev_prefix
+	dev_prefix="$(val "$name" DEV_S3_PREFIX)"
+	if [[ "$channel" == "nightly" ]]; then
+		if [[ "$dev_prefix" == *"/pamir-rk3576/nightly/"* ]]; then ok; else
+			bad "$name: nightly dev leg is not filed under nightly/: ${dev_prefix:-<empty>}"
+		fi
+		if ran "$name" "Publish dev OTA release"; then ok; else
+			bad "$name: nightly did not publish the dev leg to the dev OTA channel"
+		fi
+		if ran "$name" "Publish secure OTA release"; then
+			bad "$name: nightly must never publish the secure leg to sit"
+		else
+			ok
+		fi
+	elif [[ -n "$dev_prefix" ]]; then
+		bad "$name: DEV_S3_PREFIX set on channel $channel: $dev_prefix"
+	else
+		ok
+	fi
 }
 
 rc=$(run_act push-stable push --eventpath events/push-stable.json)
@@ -152,6 +172,15 @@ check_case dispatch-stable "$rc" stable yes
 
 rc=$(run_act dispatch-bad-stable workflow_dispatch --input manifest_ref=main --input channel=stable --input version=rk3576-v0.0.8)
 check_case dispatch-bad-stable "$rc" REJECT no
+
+rc=$(run_act push-nightly push --eventpath events/push-nightly.json)
+check_case push-nightly "$rc" nightly yes
+
+rc=$(run_act dispatch-nightly workflow_dispatch --input manifest_ref=refs/tags/rk3576-v0.2.0-nightly.3 --input channel=nightly --input version=)
+check_case dispatch-nightly "$rc" nightly yes
+
+rc=$(run_act dispatch-bad-nightly workflow_dispatch --input manifest_ref=main --input channel=nightly --input version=)
+check_case dispatch-bad-nightly "$rc" REJECT no
 
 note ""
 note "$checks checks, $failures failures"

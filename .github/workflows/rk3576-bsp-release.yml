@@ -20,8 +20,9 @@ on:
           - dev
           - candidate
           - stable
+          - nightly
       version:
-        description: Release tag. Candidate/stable dispatch must build the matching rk3576-v* tag.
+        description: Release tag. Candidate/stable/nightly dispatch must build the matching rk3576-v* tag.
         required: false
         default: ""
 
@@ -105,6 +106,7 @@ jobs:
           version="${DISPATCH_VERSION:-}"
           stable_tag_regex='^rk3576-v[0-9]+[.][0-9]+[.][0-9]+$'
           candidate_tag_regex='^rk3576-v[0-9]+[.][0-9]+[.][0-9]+-rc[.][0-9]+$'
+          nightly_tag_regex='^rk3576-v[0-9]+[.][0-9]+[.][0-9]+-nightly[.][0-9]+$'
 
           if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
             if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" =~ $candidate_tag_regex ]]; then
@@ -115,9 +117,15 @@ jobs:
               manifest_ref="refs/tags/$GITHUB_REF_NAME"
               channel="stable"
               version="$GITHUB_REF_NAME"
+            elif [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" =~ $nightly_tag_regex ]]; then
+              # Pushed by the nightly stager (rk3576-bsp-nightly.yml) on a
+              # commit-pinned nightly/YYYY-MM-DD manifest.
+              manifest_ref="refs/tags/$GITHUB_REF_NAME"
+              channel="nightly"
+              version="$GITHUB_REF_NAME"
             elif [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" == rk3576-v* ]]; then
               echo "unsupported RK3576 release tag: $GITHUB_REF_NAME" >&2
-              echo "use rk3576-vX.Y.Z or rk3576-vX.Y.Z-rc.N" >&2
+              echo "use rk3576-vX.Y.Z, rk3576-vX.Y.Z-rc.N, or rk3576-vX.Y.Z-nightly.N" >&2
               exit 1
             else
               manifest_ref="$GITHUB_REF_NAME"
@@ -154,6 +162,22 @@ jobs:
               echo "stable dispatch must build the same tag it publishes" >&2
               exit 1
             fi
+          elif [[ "$channel" == "nightly" ]]; then
+            # Rebuild of an existing nightly tag; the stager creates them.
+            if [[ -z "$version" ]]; then
+              version="${manifest_ref#refs/tags/}"
+            fi
+            if [[ ! "$version" =~ $nightly_tag_regex ]]; then
+              echo "nightly dispatch requires rk3576-vX.Y.Z-nightly.N version" >&2
+              exit 1
+            fi
+            if [[ "$manifest_ref" == "$version" ]]; then
+              manifest_ref="refs/tags/$version"
+            fi
+            if [[ "$manifest_ref" != "refs/tags/$version" ]]; then
+              echo "nightly dispatch must build the same tag it publishes" >&2
+              exit 1
+            fi
           fi
 
           build_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
@@ -162,31 +186,43 @@ jobs:
           # Bundles only for tagged builds, where VERSION matches the baked
           # IMAGE_VERSION; a mismatched bundle reinstall-loops on devices.
           rauc_bundle=0
-          if [[ "$channel" == "stable" || "$channel" == "candidate" ]]; then
+          if [[ "$channel" == "stable" || "$channel" == "candidate" || "$channel" == "nightly" ]]; then
             rauc_bundle=1
           fi
 
           # Secure-leg S3 prefix, mirroring the dev leg's channel layout.
+          # Nightlies keep both legs under one nightly/ tree so the prune job
+          # can drop a whole night by tag; the dev leg's prefix is passed
+          # explicitly there because the release driver knows no nightly
+          # channel and would otherwise file it under dev/.
           sec_s3_prefix=""
+          dev_s3_prefix=""
           if [[ "$channel" == "stable" ]]; then
             sec_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/releases/${version}-sec"
           elif [[ "$channel" == "candidate" ]]; then
             sec_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/candidates/${version}-sec/${build_id}"
+          elif [[ "$channel" == "nightly" ]]; then
+            dev_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/nightly/${version}/${build_id}"
+            sec_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/nightly/${version}-sec/${build_id}"
           fi
 
           # Candidates bake the final vX.Y.Z: the mkosi SemVer gate rejects
           # -rc.N, and rc bundles are published to the dev channel as the
           # final version. S3 prefixes and the GitHub prerelease keep the
-          # rc name.
+          # rc name. Nightlies bake their prerelease as-is (v0.2.0-nightly.N)
+          # so a device reports exactly which night it runs.
           rk_image_version=""
           if [[ "$channel" == "candidate" ]]; then
             rk_image_version="${version#rk3576-}"
             rk_image_version="${rk_image_version%%-rc.*}"
+          elif [[ "$channel" == "nightly" ]]; then
+            rk_image_version="${version#rk3576-}"
           fi
 
           {
             echo "RAUC_BUNDLE=$rauc_bundle"
             echo "RK_IMAGE_VERSION=$rk_image_version"
+            echo "DEV_S3_PREFIX=$dev_s3_prefix"
             echo "SEC_S3_PREFIX=$sec_s3_prefix"
             echo "BUILD_ID=$build_id"
             echo "CHANNEL=$channel"
@@ -377,7 +413,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
         run: |
+          # DEV_S3_PREFIX is empty except on nightly, where it moves the leg
+          # under nightly/; the driver keeps its own channel layout otherwise.
           cd "$SDK_DIR"
+          S3_PREFIX="$DEV_S3_PREFIX" \
           RAUC_BUNDLE=1 \
             bsp-tools/ci/build-and-upload-release.sh
 
@@ -390,9 +429,11 @@ jobs:
           cd "$SDK_DIR"
           bsp-tools/ci/publish-github-release.sh
 
-      # Only publish OTA for final release tags.
+      # Only publish OTA for final release tags and nightlies. A nightly is
+      # live on the dev channel the moment it lands; dev images poll with
+      # auto_install off, so a device takes it only when its owner asks.
       - name: Publish dev OTA release
-        if: env.CHANNEL == 'stable'
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'nightly'
         shell: bash
         run: |
           # Dev images poll lapis/dev.
@@ -400,8 +441,10 @@ jobs:
 
       # Secure EVT3 leg: tagged builds ship the signed secure image, built
       # serially after the dev leg so its failure cannot block that release.
+      # Nightlies build it too, archived under nightly/<tag>-sec only: the
+      # sit channel receives on-demand releases, never a nightly.
       - name: Bootstrap secure workspace BSP tools
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate'
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
@@ -411,7 +454,7 @@ jobs:
           manifest-checkout/ci/bootstrap-workspace.sh "$SEC_SDK_DIR"
 
       - name: Stage signing keys into the secure workspace
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate'
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
         shell: bash
         run: |
           # Reuse the OTP-verified key set staged above; cp -a keeps the
@@ -427,7 +470,7 @@ jobs:
           cp -a "$SDK_DIR/u-boot/keys/." "$SEC_SDK_DIR/u-boot/keys/"
 
       - name: Build and upload secure release
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate'
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
@@ -471,7 +514,7 @@ jobs:
             bsp-tools/ci/build-and-upload-release.sh
 
       - name: Attach secure artifacts to the GitHub release
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate'
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
