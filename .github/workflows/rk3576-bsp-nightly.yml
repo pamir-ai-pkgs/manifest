@@ -1,0 +1,131 @@
+name: RK3576 BSP Nightly
+
+# Stages one nightly build from every open pull request labelled "nightly"
+# across the BSP, then prunes nightlies past their retention window. The
+# stager (ci/nightly-stage.py) creates nightly/YYYY-MM-DD in every repository
+# the manifest names, merges the labelled pull requests in server side, commits
+# a commit-pinned manifest, and tags it rk3576-vX.Y.Z-nightly.N. Pushing that
+# tag with PAMIR_GITHUB_TOKEN is what starts the build: rk3576-bsp-release.yml
+# recognises the nightly tag form and builds it on its nightly channel (dev
+# leg published live to the dev OTA channel, prod leg archived only).
+
+on:
+  schedule:
+    # 09:00 UTC = 02:00 US Pacific, after the last commits of the day and
+    # before the morning after. The nightly date is the UTC date of the run.
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: Nightly date, YYYY-MM-DD. Default is today (UTC). Reusing a date reuses its branches and adds newly labelled pull requests.
+        required: false
+        default: ""
+      dry_run:
+        description: Select and report only. Creates no branches, commits, or tags.
+        type: boolean
+        default: false
+      prune:
+        description: Also prune nightlies older than the retention window (always on for scheduled runs).
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Independent of the build group: staging is a few API calls and must not
+# queue behind a running release. The build it triggers serialises there.
+concurrency:
+  group: rk3576-bsp-nightly
+  cancel-in-progress: false
+
+env:
+  NIGHTLY_KEEP_DAYS: "14"
+
+jobs:
+  stage:
+    name: Stage nightly branches and tag
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - rk3576
+      - bsp
+    timeout-minutes: 30
+    steps:
+      - name: Checkout manifest repo
+        uses: actions/checkout@v6.0.3
+
+      - name: Stage nightly
+        id: stage
+        shell: bash
+        env:
+          # Needs contents:write and pull-requests:read on the manifest
+          # repository and every repository the manifest names. The tag push
+          # must come from this token, not github.token, or it triggers
+          # nothing.
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          NIGHTLY_DATE: ${{ inputs.date }}
+          NIGHTLY_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=(stage --report nightly-report.json)
+          if [[ -n "${NIGHTLY_DATE:-}" ]]; then
+            args+=(--date "$NIGHTLY_DATE")
+          fi
+          if [[ "${NIGHTLY_DRY_RUN:-false}" == "true" ]]; then
+            args+=(--dry-run)
+          fi
+          python3 ci/nightly-stage.py "${args[@]}"
+
+      - name: Upload nightly report
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nightly-report
+          path: nightly-report.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  prune:
+    name: Prune expired nightlies
+    needs: stage
+    # A failed stage must not leave old nightlies behind.
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || inputs.prune) }}
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - rk3576
+      - bsp
+    timeout-minutes: 30
+    env:
+      AWS_DEFAULT_REGION: eu-north-1
+      AWS_REGION: eu-north-1
+      OTA_PUBLISH_REGION: us-west-2
+      OTA_PUBLISH_ROLE_ARN: arn:aws:iam::322551983552:role/lapis-ota-publish-ci
+      S3_BUCKET: lapis-os-artifacts
+    steps:
+      - name: Checkout manifest repo
+        uses: actions/checkout@v6.0.3
+
+      - name: Prune nightly branches
+        id: prune
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          python3 ci/nightly-stage.py prune \
+            --keep-days "$NIGHTLY_KEEP_DAYS" --report prune-report.json
+
+      - name: Prune expired nightly artifacts
+        if: steps.prune.outputs.expired_tags != ''
+        shell: bash
+        env:
+          EXPIRED_TAGS: ${{ steps.prune.outputs.expired_tags }}
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          GITHUB_RELEASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          # Build artifacts, the dev-channel OTA registration, and the
+          # GitHub prerelease go with the branches; the nightly tags stay
+          # as the version record.
+          # shellcheck disable=SC2086
+          ci/nightly-prune-artifacts.sh $EXPIRED_TAGS
