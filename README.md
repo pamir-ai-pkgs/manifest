@@ -203,11 +203,87 @@ do not add AWS keys to GitHub secrets.
   secure leg as well. RAUC bundles are staged only for tagged builds, where
   the bundle version matches the image's baked `IMAGE_VERSION`; untagged
   dev/scratch builds stage none.
-- Manual dispatch: build `scratch`, `dev`, `candidate`, or `stable` from a
-  selected manifest ref. Candidate and stable dispatches must build the same
-  existing manifest tag they publish.
+- Tag manifest as `rk3576-vX.Y.Z-nightly.N` (the nightly stager does this,
+  see below): build the dev image on the `nightly` channel with its signed
+  RAUC bundle (`lapis-dev-vX.Y.Z-nightly.N.raucb`) baking
+  `IMAGE_VERSION=vX.Y.Z-nightly.N`, upload to
+  `s3://distiller-os-release-artifacts/pamir-rk3576/nightly/rk3576-vX.Y.Z-nightly.N/<build-id>/`,
+  register it live on the `dev` OTA channel, and publish a GitHub prerelease
+  on the manifest repository, as for candidates. The same run then builds
+  the secure leg serially, uploads it under
+  `.../nightly/rk3576-vX.Y.Z-nightly.N-sec/<build-id>/`, moves
+  `channels/nightly/sec-latest.json`, and attaches its artifacts to the
+  prerelease, but never registers it on `sit`: sit and prod receive
+  on-demand releases only.
+- Manual dispatch: build `scratch`, `dev`, `candidate`, `stable`, or
+  `nightly` from a selected manifest ref. Candidate, stable, and nightly
+  dispatches must build the same existing manifest tag they publish.
 - Candidate and stable builds reject manifests that still use floating branch
   revisions for projects. Pin release manifests to component tags or exact SHAs.
+
+### Nightly builds
+
+`rk3576-bsp-nightly.yml` runs every day at 09:00 UTC (02:00 US Pacific) and
+on manual dispatch. It builds one image from whatever is ready across the BSP
+so integration problems surface the morning after the code lands, not the
+week of a release.
+
+1. **Select.** In the manifest repository and in every component repository
+   the manifest names, every open pull request that carries the `nightly`
+   label, is not a draft, targets the default branch, and whose head commit's
+   own CI is green (a commit with no checks at all counts as green). Attach
+   the label to opt a pull request in; remove it to opt out. Pull requests
+   sharing a head branch name across repositories travel together as one
+   group, so a change that spans repositories is either in the nightly on
+   every side or on none.
+2. **Stage.** `ci/nightly-stage.py` creates `nightly/YYYY-MM-DD` from the
+   default branch in all of those repositories (every one, whether or not it
+   has a labelled pull request) and merges the selected groups in, server
+   side, oldest group first. A merge conflict anywhere in a group rolls the
+   group's repositories back to where the group found them and skips every
+   member; the night continues with the rest. That rollback, before
+   anything is pinned or tagged, is the only time a nightly branch moves
+   backwards. Rerunning the same date reuses the branches and adds pull
+   requests labelled since.
+3. **Pin and tag.** The stager commits `rk3576-debian-ab.xml` on the manifest
+   repository's nightly branch with every project pinned to its nightly
+   commit (`revision="<sha>" upstream="refs/heads/nightly/YYYY-MM-DD"`), plus a
+   `nightly.json` record of what went in and what was skipped, and tags that
+   commit `rk3576-vX.Y.Z-nightly.N`. `X.Y.Z` is read from
+   `bsp-tools/release/NEXT_VERSION` at the bsp-tools nightly tip; `N` is one
+   more than the highest existing nightly tag for that version. Changing
+   `NEXT_VERSION` after a release opens the next cycle and restarts the
+   counter; the stager refuses to run if `rk3576-vX.Y.Z` is already tagged.
+4. **Build.** The tag push triggers `rk3576-bsp-release.yml` as described
+   above. The run's job summary lists the included and skipped pull requests.
+
+A nightly is offered to `dev` devices as soon as it is registered. Dev images
+poll with `auto_install` off, so a device installs a nightly only when its
+owner asks for it from the mobile app; a bad night is superseded by the next
+one, never reverted.
+
+Retention is 14 days. The scheduled run's `prune` job deletes `nightly/*`
+branches older than that in every repository, then removes the expired
+nightlies' `nightly/<tag>/` and `nightly/<tag>-sec/` S3 prefixes, their
+`dev` OTA registrations (`ota-publish delete --purge`), and their GitHub
+prereleases. The newest nightly is always kept, and nightly tags are never
+deleted: they are the version record and the counter.
+
+Dispatch inputs: `date` reruns or pre-stages a specific day, `dry_run`
+selects and reports without writing anything, `prune` runs the prune job on a
+manual run. To rebuild an existing nightly, dispatch the release workflow with
+channel `nightly` and the tag as `manifest_ref`.
+
+For nightlies `PAMIR_GITHUB_TOKEN` additionally needs `contents: write` (branch
+and tag creation, server-side merges) and `pull-requests: read` on the
+manifest repository and on every repository the manifest names. The tag must
+be pushed with that token, not the workflow's own `github.token`, or the push
+triggers no build.
+
+Local checks: `python3 ci/test-nightly-stage.py` exercises the stager against
+an in-memory GitHub; `ci/test-resolve-params.sh` and
+`.github/act/release-matrix/run-matrix.sh` cover the nightly channel of the
+release workflow.
 
 Candidate and stable GitHub Releases are lightweight publication records. They
 attach `release-notes.md`, `github-release.v1.json`, `manifest.xml`,
