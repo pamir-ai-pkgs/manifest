@@ -23,9 +23,14 @@ as one group: a change that spans repositories is either in the nightly on
 every side or on none. Groups merge in order of their oldest pull request. A
 merge conflict anywhere in a group rolls the group's repositories back to
 where they stood before it and skips the whole group; the night continues
-with what is left. That rollback, before anything is pinned or tagged, is the
-only time a nightly branch moves backwards. A rerun for the same date reuses
-the existing branches and only adds pull requests labelled since.
+with what is left. A rerun for the same date rebuilds the night rather than
+extending it: every nightly branch is moved back to its repository's default
+branch as it stands now and the pull requests labelled now are merged again,
+so a rerun picks up fixes merged to the default branch in between and drops
+pull requests that lost the label. That rebuild and the rollback are the
+only times a nightly branch moves backwards. Earlier tags of the same date
+keep their artifacts, but the component commits they pin may no longer be
+reachable from any branch.
 
 ``prune`` deletes ``nightly/*`` branches older than the retention window in
 every repository and prints the nightly versions whose artifacts expired with
@@ -276,25 +281,32 @@ def select_pulls(gh: GitHub, owner: str, repo: str, default_branch: str) -> tupl
 
 
 def ensure_branch(gh: GitHub, owner: str, repo: str, branch: str, base_sha: str,
-                  dry_run: bool) -> tuple[str, bool]:
-    """Create ``branch`` at ``base_sha`` unless it exists. Return (sha, created)."""
+                  dry_run: bool) -> tuple[str, str]:
+    """Put ``branch`` at ``base_sha``: create it, or move it there if it
+    already exists elsewhere (a rerun rebuilds the night from the default
+    branch as it stands now). Return (sha, state); state is ``created``,
+    ``reset`` or ``unchanged``.
+    """
     existing = branch_head(gh, owner, repo, branch)
-    if existing:
-        return existing, False
-    if dry_run:
-        return base_sha, True
-    status, payload = gh.request(
-        "POST", f"/repos/{owner}/{repo}/git/refs",
-        body={"ref": f"refs/heads/{branch}", "sha": base_sha})
-    if status == 422:
-        # Lost a race with a concurrent run; reuse what it made.
-        existing = branch_head(gh, owner, repo, branch)
-        if existing:
-            return existing, False
-    if status != 201:
-        raise StageError(
-            f"cannot create {owner}/{repo} branch {branch}: {status} {message(payload)}")
-    return payload["object"]["sha"], True
+    if existing is None and not dry_run:
+        status, payload = gh.request(
+            "POST", f"/repos/{owner}/{repo}/git/refs",
+            body={"ref": f"refs/heads/{branch}", "sha": base_sha})
+        if status == 201:
+            return payload["object"]["sha"], "created"
+        if status == 422:
+            # Lost a race with a concurrent run; treat what it made as a rerun.
+            existing = branch_head(gh, owner, repo, branch)
+        if existing is None:
+            raise StageError(
+                f"cannot create {owner}/{repo} branch {branch}: {status} {message(payload)}")
+    if existing is None:
+        return base_sha, "created"
+    if existing == base_sha:
+        return existing, "unchanged"
+    if not dry_run:
+        move_branch(gh, owner, repo, branch, base_sha)
+    return base_sha, "reset"
 
 
 def merge_pull(gh: GitHub, owner: str, repo: str, branch: str, pr: dict,
@@ -324,14 +336,15 @@ def merge_pull(gh: GitHub, owner: str, repo: str, branch: str, pr: dict,
     return "error", None
 
 
-def reset_branch(gh: GitHub, owner: str, repo: str, branch: str, sha: str) -> None:
-    """Move ``branch`` back to ``sha``: the within-run rollback of a group."""
+def move_branch(gh: GitHub, owner: str, repo: str, branch: str, sha: str) -> None:
+    """Force ``branch`` to ``sha``: the rerun rebuild and the within-run
+    rollback of a group, the only moves that go backwards."""
     status, payload = gh.request(
         "PATCH", f"/repos/{owner}/{repo}/git/refs/heads/{branch}",
         body={"sha": sha, "force": True})
     if status != 200:
         raise StageError(
-            f"cannot roll back {owner}/{repo} branch {branch} to {sha[:12]}: "
+            f"cannot move {owner}/{repo} branch {branch} to {sha[:12]}: "
             f"{status} {message(payload)}")
 
 
@@ -461,15 +474,15 @@ def stage(gh: GitHub, owner: str, manifest_repo: str, manifest_file: str,
 
     # Pass 1: branches and selection in every repository.
     tips: dict[str, str] = {}
-    created_flags: dict[str, bool] = {}
+    states: dict[str, str] = {}
     selected: list[dict] = []
     for repo in repos:
         default = manifest_default if repo == manifest_repo else repo_default_branch(gh, owner, repo)
         base = manifest_main if repo == manifest_repo else branch_head(gh, owner, repo, default)
         if not base:
             raise StageError(f"{owner}/{repo} has no {default}")
-        tips[repo], created_flags[repo] = ensure_branch(gh, owner, repo, branch, base, dry_run)
-        log(f"{repo}: {branch} {'created' if created_flags[repo] else 'reused'} at {tips[repo][:12]}")
+        tips[repo], states[repo] = ensure_branch(gh, owner, repo, branch, base, dry_run)
+        log(f"{repo}: {branch} {states[repo]} at {tips[repo][:12]}")
         chosen, rejected = select_pulls(gh, owner, repo, default)
         for pr in rejected:
             report["skipped"].append(pr)
@@ -506,7 +519,7 @@ def stage(gh: GitHub, owner: str, manifest_repo: str, manifest_file: str,
         for repo, sha in snapshot.items():
             if tips[repo] != sha:
                 if not dry_run:
-                    reset_branch(gh, owner, repo, branch, sha)
+                    move_branch(gh, owner, repo, branch, sha)
                 tips[repo] = sha
                 log(f"{repo}: rolled {branch} back to {sha[:12]}")
         log(f"{failed['repo']}: skip #{failed['number']} {ref}: {failed['reason']}")
@@ -522,7 +535,7 @@ def stage(gh: GitHub, owner: str, manifest_repo: str, manifest_file: str,
     pins = dict(tips)
     for repo in repos:
         report["repos"].append({"repo": repo, "branch": branch, "sha": tips[repo],
-                                "created": created_flags[repo]})
+                                "state": states[repo]})
 
     # Version: the target from bsp-tools at its nightly tip, the counter from
     # the manifest repository's existing nightly tags.
