@@ -1,0 +1,211 @@
+{
+  "branch": "nightly/2026-08-27",
+  "date": "2026-08-27",
+  "included": [
+    {
+      "ci": "no CI on this commit",
+      "created_at": "2026-08-15T22:06:16Z",
+      "group": "frank/no-adb",
+      "head_ref": "frank/no-adb",
+      "head_sha": "e1bbd1d78483cd504008c3e29d319dd3e0b162bf",
+      "number": 41,
+      "outcome": "merged",
+      "repo": "linux-rockchip-device-rockchip",
+      "title": "rk3576: lapis-secure: drop ADB from secure images",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-device-rockchip/pull/41"
+    },
+    {
+      "ci": "no CI on this commit",
+      "created_at": "2026-08-20T02:11:20Z",
+      "group": "frank/bound-ping-pong",
+      "head_ref": "frank/bound-ping-pong",
+      "head_sha": "65472d69adadfc47ceb6d8341ab6da4ee678505d",
+      "number": 54,
+      "outcome": "merged",
+      "repo": "linux-rockchip-u-boot",
+      "title": "ota: bound A/B crash-loop ping-pong",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-u-boot/pull/54"
+    },
+    {
+      "ci": "green",
+      "created_at": "2026-08-21T06:59:04Z",
+      "group": "codex/health1-shutdown-status",
+      "head_ref": "codex/health1-shutdown-status",
+      "head_sha": "1db70bafd646feed691b8b950384e6094c8a8772",
+      "number": 35,
+      "outcome": "merged",
+      "repo": "lapis-healthd",
+      "title": "feat(health1): publish authoritative shutdown status",
+      "url": "https://github.com/pamir-ai-pkgs/lapis-healthd/pull/35"
+    },
+    {
+      "ci": "green",
+      "created_at": "2026-08-24T11:07:21Z",
+      "group": "feat/boot-bundle-console-journal",
+      "head_ref": "feat/boot-bundle-console-journal",
+      "head_sha": "087101c47cf03147a4f03837aeccbd8538742903",
+      "number": 10,
+      "outcome": "merged",
+      "repo": "lapis-telemetryd",
+      "title": "bundle: carry the console ring and previous-boot journal in essential boot bundles",
+      "url": "https://github.com/pamir-ai-pkgs/lapis-telemetryd/pull/10"
+    },
+    {
+      "ci": "green",
+      "created_at": "2026-08-25T01:00:38Z",
+      "group": "codex/dbus-identity-foundation",
+      "head_ref": "codex/dbus-identity-foundation",
+      "head_sha": "6eec2854ae8246c6cd8057a2fa55c3ad2a02f414",
+      "number": 108,
+      "outcome": "merged",
+      "repo": "lapis-hwserviced",
+      "title": "refactor(dbus): share bounded caller identity and transport",
+      "url": "https://github.com/pamir-ai-pkgs/lapis-hwserviced/pull/108"
+    },
+    {
+      "ci": "no CI on this commit",
+      "created_at": "2026-08-25T01:39:56Z",
+      "group": "codex/sharp-frame-progress-main",
+      "head_ref": "codex/sharp-frame-progress-main",
+      "head_sha": "2799ddadfc450abe3acd4c23a910ead590d79451",
+      "number": 120,
+      "outcome": "merged",
+      "repo": "linux-rockchip-kernel",
+      "title": "feat(drm): expose Sharp SPI frame sequence",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-kernel/pull/120"
+    }
+  ],
+  "repos": [
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "manifest",
+      "sha": "d529b4933aa53eaba34bd9b2ee8f127edd00a616",
+      "state": "reset"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "linux-rockchip-device-rockchip",
+      "sha": "18c9647b3403e2696c067525dcfe83787104ce7f",
+      "state": "reset"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "linux-rockchip-u-boot",
+      "sha": "2ff0020767f778ffc847a5d4d515fc9c9552a687",
+      "state": "reset"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "linux-rockchip-kernel",
+      "sha": "8f5c2f706295c40d179ca682730a1fb50a07be85",
+      "state": "reset"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "linux-rockchip-recovery",
+      "sha": "bbd736530b62d5bf2b32eca7cb9f4b717a710005",
+      "state": "unchanged"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "lapis",
+      "sha": "3ec7e34fbab92f21ebf8ef681bc31773ed252890",
+      "state": "unchanged"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "lapis-telemetryd",
+      "sha": "bda8975cf38c15f7bd7e2645a5a9e025960c837d",
+      "state": "reset"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "lapis-ota",
+      "sha": "3f9e06b19971d21dd6627db51c8c820e80d96e9b",
+      "state": "unchanged"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "lapis-hwserviced",
+      "sha": "51e09b0b9fd80dc34e012f33bec076f46371cfec",
+      "state": "reset"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "lapis-healthd",
+      "sha": "7d026328b3ecaddd8b4d0da5363f84c990816a93",
+      "state": "reset"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "lapis-fgprov",
+      "sha": "baf7d27e9bf3d45d20daedaa58e74b0818a02e27",
+      "state": "unchanged"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "linux-rockchip-rkbin",
+      "sha": "9c3da090504a523016552a67fdf7993a2538b5d0",
+      "state": "unchanged"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "linux-rockchip-tools",
+      "sha": "5a4433d9bd3533c80a9426ecb20ed02a9d0b807d",
+      "state": "unchanged"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "linux-rockchip-docs",
+      "sha": "8ec0774bdd32ed2f22281d26e2be12630bce32fe",
+      "state": "unchanged"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "linux-rockchip-mkosi",
+      "sha": "bdbb0ab24a854574685450e1b4f30da0a39ad0bf",
+      "state": "unchanged"
+    },
+    {
+      "branch": "nightly/2026-08-27",
+      "repo": "linux-rockchip-bsp-tools",
+      "sha": "f4c9e28575231acc626f438bfd222b15888f0398",
+      "state": "unchanged"
+    }
+  ],
+  "schema": "pamir-rk3576.nightly.v1",
+  "skipped": [
+    {
+      "created_at": "2026-08-21T06:59:24Z",
+      "head_ref": "codex/healthd-shutdown-observer",
+      "head_sha": "3192d2eb59837378ba2d73278d201d655b407ef2",
+      "number": 104,
+      "reason": "targets codex/dbus-identity-foundation, not main",
+      "repo": "lapis-hwserviced",
+      "title": "feat(notifications): integrate health shutdown UI and APIs",
+      "url": "https://github.com/pamir-ai-pkgs/lapis-hwserviced/pull/104"
+    },
+    {
+      "created_at": "2026-08-25T01:00:43Z",
+      "head_ref": "codex/remove-standalone-nfc",
+      "head_sha": "0c89ff85449dd9cf283ac4dc009c85818c6dcdf3",
+      "number": 109,
+      "reason": "targets codex/healthd-shutdown-observer, not main",
+      "repo": "lapis-hwserviced",
+      "title": "fix(gui): remove post-onboarding NFC scene",
+      "url": "https://github.com/pamir-ai-pkgs/lapis-hwserviced/pull/109"
+    },
+    {
+      "created_at": "2026-08-25T01:00:45Z",
+      "head_ref": "codex/sharp-display-recovery",
+      "head_sha": "62c5a8eb9957a7bf9a1742788bb80011b61f014e",
+      "number": 110,
+      "reason": "targets codex/remove-standalone-nfc, not main",
+      "repo": "lapis-hwserviced",
+      "title": "fix(display): verify and recover Sharp panel handoff",
+      "url": "https://github.com/pamir-ai-pkgs/lapis-hwserviced/pull/110"
+    }
+  ],
+  "tag": "rk3576-v0.1.1-nightly.5",
+  "version": "v0.1.1-nightly.5"
+}
