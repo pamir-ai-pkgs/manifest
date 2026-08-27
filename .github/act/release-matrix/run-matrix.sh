@@ -137,11 +137,13 @@ check_case() {
 		if [[ "$dev_prefix" == *"/pamir-rk3576/nightly/"* ]]; then ok; else
 			bad "$name: nightly dev leg is not filed under nightly/: ${dev_prefix:-<empty>}"
 		fi
-		if ran "$name" "Publish dev OTA release"; then ok; else
-			bad "$name: nightly did not publish the dev leg to the dev OTA channel"
+		if ran "$name" "Publish dev OTA release"; then
+			bad "$name: nightly must not publish the dev leg to an OTA channel"
+		else
+			ok
 		fi
 		if ran "$name" "Publish secure OTA release"; then
-			bad "$name: nightly must never publish the secure leg to sit"
+			bad "$name: nightly must not publish the secure leg to an OTA channel"
 		else
 			ok
 		fi
