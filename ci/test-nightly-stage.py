@@ -126,7 +126,7 @@ class FakeGitHub(ns.GitHub):
         if rest.startswith("/git/refs/heads/") and method == "PATCH":
             name = rest[len("/git/refs/heads/"):]
             if body.get("force"):
-                # Only a group rollback may move a branch backwards.
+                # Only a rerun rebuild or a group rollback moves a branch backwards.
                 self.forced.append((repo, name, body["sha"]))
             r["branches"][name] = body["sha"]
             return 200, {"object": {"sha": body["sha"]}}
@@ -152,12 +152,16 @@ class FakeGitHub(ns.GitHub):
             base, head = body["base"], body["head"]
             if head in r["conflicts"]:
                 return 409, {"message": "Merge conflict"}
-            if head in r["merged"].setdefault(base, set()):
-                return 204, None
+            # "Already merged" follows ancestry, as on GitHub: a head merged
+            # into a tip the branch has since been moved off is not in the base.
             parent = r["branches"][base]
+            reachable = r["commits"][parent].setdefault("merged", set())
+            if head in reachable:
+                return 204, None
             sha = self._new_commit(r, parent, dict(self.files_at(repo, parent)))
+            r["commits"][sha]["merged"] = reachable | {head}
             r["branches"][base] = sha
-            r["merged"][base].add(head)
+            r["merged"].setdefault(base, set()).add(head)  # every merge ever made
             return 201, {"sha": sha}
         if rest.startswith("/contents/"):
             sha = self._resolve(r, params.get("ref", r["default_branch"]))
@@ -271,18 +275,55 @@ class StageTests(unittest.TestCase):
         self.assertEqual(report["tag"], "rk3576-v0.2.0-nightly.1")
         self.assertIn('upstream="refs/heads/nightly/2026-08-25"', report["manifest"])
 
-    def test_rerun_reuses_branches_and_adds_new_pulls(self):
+    def test_rerun_rebuilds_branches_from_the_default_branch(self):
         gh = build_fixture()
         gh.add_pull("linux-rockchip-kernel", 7, "frank/fix")
         first = run_stage(gh)
-        before = gh.repos["linux-rockchip-kernel"]["branches"]["nightly/2026-08-25"]
+        self.assertEqual({r["state"] for r in first["repos"]}, {"created"})
+        kernel = gh.repos["linux-rockchip-kernel"]
+        first_tip = kernel["branches"]["nightly/2026-08-25"]
+        # Between attempts main moves and a second pull request is labelled.
+        new_main = gh._new_commit(kernel, kernel["branches"]["main"], {})
+        kernel["branches"]["main"] = new_main
         gh.add_pull("linux-rockchip-kernel", 8, "frank/later")
+        gh.forced.clear()
+
         second = run_stage(gh)
+
         self.assertEqual(second["tag"], "rk3576-v0.2.0-nightly.2")
-        self.assertFalse(any(r["created"] for r in second["repos"]))
-        self.assertEqual({p["outcome"] for p in second["included"]}, {"already", "merged"})
-        self.assertNotEqual(before, gh.repos["linux-rockchip-kernel"]["branches"]["nightly/2026-08-25"])
+        states = {r["repo"]: r["state"] for r in second["repos"]}
+        self.assertEqual(states, {"linux-rockchip-kernel": "reset",
+                                  "manifest": "reset",  # the first pin commit is dropped
+                                  "linux-rockchip-bsp-tools": "unchanged"})
+        # Moved back to main, then every labelled pull request merged afresh on top.
+        self.assertIn(("linux-rockchip-kernel", "nightly/2026-08-25", new_main), gh.forced)
+        self.assertEqual({(p["number"], p["outcome"]) for p in second["included"]},
+                         {(7, "merged"), (8, "merged")})
+        self.assertNotEqual(first_tip, kernel["branches"]["nightly/2026-08-25"])
         self.assertNotEqual(first["manifest_commit"], second["manifest_commit"])
+        pins = {r["repo"]: r["sha"] for r in second["repos"]}
+        self.assertEqual(pins["linux-rockchip-kernel"], kernel["branches"]["nightly/2026-08-25"])
+
+    def test_rerun_drops_a_pull_request_that_lost_the_label(self):
+        gh = build_fixture()
+        gh.add_pull("linux-rockchip-kernel", 7, "frank/fix")
+        run_stage(gh)
+        gh.repos["linux-rockchip-kernel"]["pulls"][0]["labels"] = []
+        second = run_stage(gh)
+        self.assertEqual(second["included"], [])
+        kernel = gh.repos["linux-rockchip-kernel"]
+        self.assertEqual(kernel["branches"]["nightly/2026-08-25"], kernel["branches"]["main"])
+
+    def test_dry_run_rerun_moves_nothing(self):
+        gh = build_fixture()
+        gh.add_pull("linux-rockchip-kernel", 7, "frank/fix")
+        run_stage(gh)
+        gh.writes.clear()
+        report = run_stage(gh, dry_run=True)
+        self.assertEqual(gh.writes, [])
+        states = {r["repo"]: r["state"] for r in report["repos"]}
+        self.assertEqual(states, {"linux-rockchip-kernel": "reset", "manifest": "reset",
+                                  "linux-rockchip-bsp-tools": "unchanged"})
 
     def test_no_forced_moves_without_a_group_conflict(self):
         gh = build_fixture()

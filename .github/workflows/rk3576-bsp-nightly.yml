@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       date:
-        description: Nightly date, YYYY-MM-DD. Default is today (UTC). Reusing a date reuses its branches and adds newly labelled pull requests.
+        description: Nightly date, YYYY-MM-DD. Default is today (UTC). Rerunning a date rebuilds its branches from the default branches and the pull requests labelled now.
         required: false
         default: ""
       dry_run:

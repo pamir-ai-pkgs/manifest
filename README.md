@@ -240,10 +240,14 @@ week of a release.
    has a labelled pull request) and merges the selected groups in, server
    side, oldest group first. A merge conflict anywhere in a group rolls the
    group's repositories back to where the group found them and skips every
-   member; the night continues with the rest. That rollback, before
-   anything is pinned or tagged, is the only time a nightly branch moves
-   backwards. Rerunning the same date reuses the branches and adds pull
-   requests labelled since.
+   member; the night continues with the rest. Rerunning the same date
+   rebuilds the night rather than extending it: every nightly branch is
+   moved back to its default branch as it stands now and the pull requests
+   labelled now are merged again, so a rerun picks up fixes merged in
+   between and drops pull requests that lost the label. That rebuild and
+   the rollback are the only times a nightly branch moves backwards; earlier
+   tags of the same date keep their artifacts, but the component commits
+   they pin may no longer be reachable from any branch.
 3. **Pin and tag.** The stager commits `rk3576-debian-ab.xml` on the manifest
    repository's nightly branch with every project pinned to its nightly
    commit (`revision="<sha>" upstream="refs/heads/nightly/YYYY-MM-DD"`), plus a
