@@ -2,12 +2,12 @@
 <manifest>
   <remote name="github" fetch="https://github.com/pamir-ai-pkgs/" review="https://github.com/pamir-ai-pkgs/" />
   <default remote="github" revision="main" dest-branch="main" sync-j="4" sync-c="true" />
-  <project name="linux-rockchip-device-rockchip" path="device/rockchip" revision="e9b324a4da4b8a041081d6ebfadf5d53b50b2b6f" upstream="refs/heads/nightly/2026-08-27">
+  <project name="linux-rockchip-device-rockchip" path="device/rockchip" revision="ba98c0b19e69ef48a150d1484a6653091a44176d" upstream="refs/heads/nightly/2026-08-27">
     <linkfile src="common/scripts/build.sh" dest="build.sh" />
     <linkfile src="common/Makefile" dest="Makefile" />
     <linkfile src="common/scripts/rkflash.sh" dest="rkflash.sh" />
   </project>
-  <project name="linux-rockchip-u-boot" path="u-boot" revision="3f8cfb255c2ea092dcf7f2cf64f2631903f4ad80" upstream="refs/heads/nightly/2026-08-27" />
+  <project name="linux-rockchip-u-boot" path="u-boot" revision="4b65b6f3036bdf6f9f297bc07ec8b1f65945791d" upstream="refs/heads/nightly/2026-08-27" />
   <project name="linux-rockchip-kernel" path="kernel-6.1" revision="b8f5b37ff472a6212d49043b52bb2fe9c54b4555" upstream="refs/heads/nightly/2026-08-27">
     <linkfile src="." dest="kernel" />
   </project>
