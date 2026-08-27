@@ -29,7 +29,7 @@ the existing branches and only adds pull requests labelled since.
 
 ``prune`` deletes ``nightly/*`` branches older than the retention window in
 every repository and prints the nightly versions whose artifacts expired with
-them, so the caller can drop the matching S3 prefixes and OTA registrations.
+them, so the caller can drop the matching S3 prefixes.
 
 Usage:
   nightly-stage.py stage [--date YYYY-MM-DD] [--dry-run] ...

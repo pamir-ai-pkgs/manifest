@@ -208,13 +208,12 @@ do not add AWS keys to GitHub secrets.
   RAUC bundle (`lapis-dev-vX.Y.Z-nightly.N.raucb`) baking
   `IMAGE_VERSION=vX.Y.Z-nightly.N`, upload to
   `s3://distiller-os-release-artifacts/pamir-rk3576/nightly/rk3576-vX.Y.Z-nightly.N/<build-id>/`,
-  register it live on the `dev` OTA channel, and publish a GitHub prerelease
-  on the manifest repository, as for candidates. The same run then builds
+  and publish a GitHub prerelease on the manifest repository, as for
+  candidates. The same run then builds
   the secure leg serially, uploads it under
   `.../nightly/rk3576-vX.Y.Z-nightly.N-sec/<build-id>/`, moves
   `channels/nightly/sec-latest.json`, and attaches its artifacts to the
-  prerelease, but never registers it on `sit`: sit and prod receive
-  on-demand releases only.
+  prerelease. Neither leg is published to an OTA channel.
 - Manual dispatch: build `scratch`, `dev`, `candidate`, `stable`, or
   `nightly` from a selected manifest ref. Candidate, stable, and nightly
   dispatches must build the same existing manifest tag they publish.
@@ -257,16 +256,13 @@ week of a release.
 4. **Build.** The tag push triggers `rk3576-bsp-release.yml` as described
    above. The run's job summary lists the included and skipped pull requests.
 
-A nightly is offered to `dev` devices as soon as it is registered. Dev images
-poll with `auto_install` off, so a device installs a nightly only when its
-owner asks for it from the mobile app; a bad night is superseded by the next
-one, never reverted.
+Nightlies are not published to any OTA channel. Their RAUC bundles are on S3
+under the prefixes above and attached to the GitHub prerelease.
 
 Retention is 14 days. The scheduled run's `prune` job deletes `nightly/*`
 branches older than that in every repository, then removes the expired
-nightlies' `nightly/<tag>/` and `nightly/<tag>-sec/` S3 prefixes, their
-`dev` OTA registrations (`ota-publish delete --purge`), and their GitHub
-prereleases. The newest nightly is always kept, and nightly tags are never
+nightlies' `nightly/<tag>/` and `nightly/<tag>-sec/` S3 prefixes and their
+GitHub prereleases. The newest nightly is always kept, and nightly tags are never
 deleted: they are the version record and the counter.
 
 Dispatch inputs: `date` reruns or pre-stages a specific day, `dry_run`

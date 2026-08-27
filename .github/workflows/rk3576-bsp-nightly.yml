@@ -6,8 +6,9 @@ name: RK3576 BSP Nightly
 # the manifest names, merges the labelled pull requests in server side, commits
 # a commit-pinned manifest, and tags it rk3576-vX.Y.Z-nightly.N. Pushing that
 # tag with PAMIR_GITHUB_TOKEN is what starts the build: rk3576-bsp-release.yml
-# recognises the nightly tag form and builds it on its nightly channel (dev
-# leg published live to the dev OTA channel, prod leg archived only).
+# recognises the nightly tag form and builds it on its nightly channel (both
+# legs uploaded to S3 and attached to a GitHub prerelease; neither leg is
+# published to an OTA channel).
 
 on:
   schedule:
@@ -100,8 +101,6 @@ jobs:
     env:
       AWS_DEFAULT_REGION: eu-north-1
       AWS_REGION: eu-north-1
-      OTA_PUBLISH_REGION: us-west-2
-      OTA_PUBLISH_ROLE_ARN: arn:aws:iam::322551983552:role/lapis-ota-publish-ci
       S3_BUCKET: lapis-os-artifacts
     steps:
       - name: Checkout manifest repo
@@ -124,8 +123,7 @@ jobs:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
           GITHUB_RELEASE_REPOSITORY: ${{ github.repository }}
         run: |
-          # Build artifacts, the dev-channel OTA registration, and the
-          # GitHub prerelease go with the branches; the nightly tags stay
-          # as the version record.
+          # Build artifacts and the GitHub prerelease go with the branches;
+          # the nightly tags stay as the version record.
           # shellcheck disable=SC2086
           ci/nightly-prune-artifacts.sh $EXPIRED_TAGS

@@ -429,11 +429,11 @@ jobs:
           cd "$SDK_DIR"
           bsp-tools/ci/publish-github-release.sh
 
-      # Only publish OTA for final release tags and nightlies. A nightly is
-      # live on the dev channel the moment it lands; dev images poll with
-      # auto_install off, so a device takes it only when its owner asks.
+      # Only publish OTA for final release tags. Nightlies are not published
+      # to any OTA channel: their bundles are on S3 and attached to the
+      # GitHub prerelease.
       - name: Publish dev OTA release
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'nightly'
+        if: env.CHANNEL == 'stable'
         shell: bash
         run: |
           # Dev images poll lapis/dev.
@@ -441,8 +441,8 @@ jobs:
 
       # Secure EVT3 leg: tagged builds ship the signed secure image, built
       # serially after the dev leg so its failure cannot block that release.
-      # Nightlies build it too, archived under nightly/<tag>-sec only: the
-      # sit channel receives on-demand releases, never a nightly.
+      # Nightlies build it too, uploaded under nightly/<tag>-sec only and not
+      # published to any OTA channel.
       - name: Bootstrap secure workspace BSP tools
         if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
         shell: bash
