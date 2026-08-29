@@ -48,6 +48,12 @@ jobs:
       AWS_REGION: eu-north-1
       ARTIFACT_DOWNLOAD_BASE_URL: https://d16xxnueu5edhn.cloudfront.net
       ARTIFACT_DOWNLOAD_TOKEN: ${{ secrets.PAMIR_ARTIFACT_DOWNLOAD_TOKEN }}
+      # Rust from-source packages (lapis-hwserviced) pull sibling crates as
+      # git dependencies. Cargo's built-in libgit2 transport ignores the
+      # insteadOf token rewrite and only knows ssh-agent, so route its
+      # fetches through the git CLI, which honours the rewrite configured in
+      # "Configure GitHub authentication".
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
       DEFCONFIG: rockchip_rk3576_lapis_evt3_defconfig
       MANIFEST_FILE: rk3576-debian-ab.xml
       MANIFEST_URL: https://github.com/pamir-ai-pkgs/manifest
@@ -92,6 +98,16 @@ jobs:
           git config --global \
             url."https://x-access-token:${GH_TOKEN}@github.com/pamir-ai-pkgs/".insteadOf \
             "https://github.com/pamir-ai-pkgs/"
+          # Cargo git dependencies may be declared with SSH URLs; the runner
+          # has no deploy key, so fold those onto the same token rewrite.
+          # Both forms live in one url.<token> section, which the
+          # "Remove ephemeral GitHub token rewrite" step drops wholesale.
+          git config --global --add \
+            url."https://x-access-token:${GH_TOKEN}@github.com/pamir-ai-pkgs/".insteadOf \
+            "ssh://git@github.com/pamir-ai-pkgs/"
+          git config --global --add \
+            url."https://x-access-token:${GH_TOKEN}@github.com/pamir-ai-pkgs/".insteadOf \
+            "git@github.com:pamir-ai-pkgs/"
           gh auth status
 
       - name: Resolve build parameters
