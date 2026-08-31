@@ -222,16 +222,12 @@ jobs:
             sec_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/nightly/${version}-sec/${build_id}"
           fi
 
-          # Candidates bake the final vX.Y.Z: the mkosi SemVer gate rejects
-          # -rc.N, and rc bundles are published to the dev channel as the
-          # final version. S3 prefixes and the GitHub prerelease keep the
-          # rc name. Nightlies bake their prerelease as-is (v0.2.0-nightly.N)
-          # so a device reports exactly which night it runs.
+          # Prerelease channels bake their prerelease suffix
+          # (v0.1.0-rc.2, v0.2.0-nightly.N) so a device reports exactly
+          # which build it runs and current_version_full stays truthful
+          # end to end.
           rk_image_version=""
-          if [[ "$channel" == "candidate" ]]; then
-            rk_image_version="${version#rk3576-}"
-            rk_image_version="${rk_image_version%%-rc.*}"
-          elif [[ "$channel" == "nightly" ]]; then
+          if [[ "$channel" == "candidate" || "$channel" == "nightly" ]]; then
             rk_image_version="${version#rk3576-}"
           fi
 
