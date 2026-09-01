@@ -12,9 +12,9 @@ name: RK3576 BSP Nightly
 
 on:
   schedule:
-    # 09:42 UTC = 02:42 US Pacific, after the last commits of the day and
-    # before the morning after. The nightly date is the UTC date of the run.
-    - cron: "42 9 * * *"
+    # 04:42 UTC = 21:42 PDT
+    # The nightly date is the UTC date of the run.
+    - cron: "42 4 * * *"
   workflow_dispatch:
     inputs:
       date:
