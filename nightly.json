@@ -1,0 +1,179 @@
+{
+  "branch": "nightly/2026-09-02",
+  "date": "2026-09-02",
+  "included": [
+    {
+      "ci": "no CI on this commit",
+      "created_at": "2026-08-12T17:24:47Z",
+      "group": "feat/aic8800-v5.0-firmware",
+      "head_ref": "feat/aic8800-v5.0-firmware",
+      "head_sha": "bcbec340b9f0c7f043f123c191bbd111ed8309d6",
+      "number": 66,
+      "outcome": "merged",
+      "repo": "linux-rockchip-mkosi",
+      "title": "firmware: aic8800: update 8800d80 blobs to vendor SDK V5.0_2026_0509",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-mkosi/pull/66"
+    },
+    {
+      "ci": "no CI on this commit",
+      "created_at": "2026-08-25T06:10:56Z",
+      "group": "feat/aic8800-v5.0-integrate-rc3",
+      "head_ref": "feat/aic8800-v5.0-integrate-rc3",
+      "head_sha": "192d0d79977f800ef31adffd8800ab7db3f52505",
+      "number": 121,
+      "outcome": "merged",
+      "repo": "linux-rockchip-kernel",
+      "title": "net: wireless: aic8800: integrate SDK 5.0 driver and fix RX reorder UAF",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-kernel/pull/121"
+    },
+    {
+      "ci": "no CI on this commit",
+      "created_at": "2026-08-26T15:34:12Z",
+      "group": "fix/lt7911d-init-detect-on-123",
+      "head_ref": "fix/lt7911d-init-detect-on-123",
+      "head_sha": "702235a4089723915e2ba9c11955cd9ea003fc02",
+      "number": 127,
+      "outcome": "merged",
+      "repo": "linux-rockchip-kernel",
+      "title": "media: i2c: lt7911d: poll for a signal after probe",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-kernel/pull/127"
+    },
+    {
+      "ci": "no CI on this commit",
+      "created_at": "2026-08-27T23:11:59Z",
+      "group": "fix/tcpm-boot-rediscover",
+      "head_ref": "fix/tcpm-boot-rediscover",
+      "head_sha": "5603a7a2c363dceff091bd0b7a7455be015db3e0",
+      "number": 132,
+      "outcome": "merged",
+      "repo": "linux-rockchip-kernel",
+      "title": "usb: typec: tcpm: force one hard reset when the dfp skips vdm discovery",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-kernel/pull/132"
+    },
+    {
+      "ci": "no CI on this commit",
+      "created_at": "2026-09-01T09:03:04Z",
+      "group": "fix/networkmanager-usb-peer-priority",
+      "head_ref": "fix/networkmanager-usb-peer-priority",
+      "head_sha": "5d7cdd314ae1abc4d9bb265efeff48f4bf0af06d",
+      "number": 115,
+      "outcome": "merged",
+      "repo": "linux-rockchip-mkosi",
+      "title": "mkosi: prefer WiFi over USB Ethernet",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-mkosi/pull/115"
+    }
+  ],
+  "repos": [
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "manifest",
+      "sha": "67d152b9f51555cf38fdf04e21dbf0fb38540b9b",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "linux-rockchip-device-rockchip",
+      "sha": "18e7c89d7232d1bb83b8c0e58d55413487a39311",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "linux-rockchip-u-boot",
+      "sha": "9fcf09079757ce1397a0aede3876017f9003cc91",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "linux-rockchip-kernel",
+      "sha": "c57a702ea6646ca6fa67d0fc14dfe5830c0eb5ad",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "linux-rockchip-recovery",
+      "sha": "bbd736530b62d5bf2b32eca7cb9f4b717a710005",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "lapis",
+      "sha": "0b87231efd09407fb147d11baa1988029bc7d470",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "lapis-telemetryd",
+      "sha": "e9657479724eadbae1056b11691fd57ab61dccae",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "lapis-ota",
+      "sha": "44a1792c67b620e0e42924e47800452b5cb9808c",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "lapis-hwserviced",
+      "sha": "3cd18d5af30e1c45deac1e92a5411d7ea9e3f037",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "lapis-healthd",
+      "sha": "c87a0dcf460da46ef0d572c47bd92ce0c2edee95",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "lapis-fgprov",
+      "sha": "baf7d27e9bf3d45d20daedaa58e74b0818a02e27",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "linux-rockchip-rkbin",
+      "sha": "9c3da090504a523016552a67fdf7993a2538b5d0",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "linux-rockchip-tools",
+      "sha": "5a4433d9bd3533c80a9426ecb20ed02a9d0b807d",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "linux-rockchip-docs",
+      "sha": "8ec0774bdd32ed2f22281d26e2be12630bce32fe",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "linux-rockchip-mkosi",
+      "sha": "cd63ce10bbc5901e49b657c719a021af03774e05",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-02",
+      "repo": "linux-rockchip-bsp-tools",
+      "sha": "cb63399f0f9ea8e29a53d01240c5871647206f75",
+      "state": "created"
+    }
+  ],
+  "schema": "pamir-rk3576.nightly.v1",
+  "skipped": [
+    {
+      "created_at": "2026-08-27T23:12:09Z",
+      "head_ref": "fix/lt7911d-orientation-reset",
+      "head_sha": "5763c0fcf6c26ce41e7294d61fa7b025ee3e4cb7",
+      "number": 133,
+      "reason": "targets fix/tcpm-boot-rediscover, not main",
+      "repo": "linux-rockchip-kernel",
+      "title": "media: i2c: lt7911d: only reset the bridge when the orientation gpio changes",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-kernel/pull/133"
+    }
+  ],
+  "tag": "rk3576-v0.1.2-nightly.5",
+  "version": "v0.1.2-nightly.5"
+}
