@@ -1,0 +1,155 @@
+{
+  "branch": "nightly/2026-09-04",
+  "date": "2026-09-04",
+  "included": [
+    {
+      "ci": "no CI on this commit",
+      "created_at": "2026-08-25T06:10:56Z",
+      "group": "feat/aic8800-v5.0-integrate-rc3",
+      "head_ref": "feat/aic8800-v5.0-integrate-rc3",
+      "head_sha": "192d0d79977f800ef31adffd8800ab7db3f52505",
+      "number": 121,
+      "outcome": "merged",
+      "repo": "linux-rockchip-kernel",
+      "title": "net: wireless: aic8800: integrate SDK 5.0 driver and fix RX reorder UAF",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-kernel/pull/121"
+    },
+    {
+      "ci": "no CI on this commit",
+      "created_at": "2026-08-26T15:34:12Z",
+      "group": "fix/lt7911d-init-detect-on-123",
+      "head_ref": "fix/lt7911d-init-detect-on-123",
+      "head_sha": "702235a4089723915e2ba9c11955cd9ea003fc02",
+      "number": 127,
+      "outcome": "merged",
+      "repo": "linux-rockchip-kernel",
+      "title": "media: i2c: lt7911d: poll for a signal after probe",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-kernel/pull/127"
+    },
+    {
+      "ci": "no CI on this commit",
+      "created_at": "2026-08-27T23:11:59Z",
+      "group": "fix/tcpm-boot-rediscover",
+      "head_ref": "fix/tcpm-boot-rediscover",
+      "head_sha": "5603a7a2c363dceff091bd0b7a7455be015db3e0",
+      "number": 132,
+      "outcome": "merged",
+      "repo": "linux-rockchip-kernel",
+      "title": "usb: typec: tcpm: force one hard reset when the dfp skips vdm discovery",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-kernel/pull/132"
+    }
+  ],
+  "repos": [
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "manifest",
+      "sha": "67d152b9f51555cf38fdf04e21dbf0fb38540b9b",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "linux-rockchip-device-rockchip",
+      "sha": "008049ec8af760576c50371d8b9d6adca0a847dc",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "linux-rockchip-u-boot",
+      "sha": "9fcf09079757ce1397a0aede3876017f9003cc91",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "linux-rockchip-kernel",
+      "sha": "911592f00cf235d50039666c5ec695a9cbf8a53c",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "linux-rockchip-recovery",
+      "sha": "bbd736530b62d5bf2b32eca7cb9f4b717a710005",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "lapis",
+      "sha": "33eb92cb73ac87ae29e8d9a5337eeb1be3fe7e60",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "lapis-telemetryd",
+      "sha": "e9657479724eadbae1056b11691fd57ab61dccae",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "lapis-ota",
+      "sha": "d25f69fb3e3c2b7f6594d887acf35c2952c85199",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "lapis-hwserviced",
+      "sha": "c6fdd3339847403c04bd7c2f4c2e552cb9e1582f",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "lapis-healthd",
+      "sha": "1b4582b802f4b97698dac6b86e79674008a98f96",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "lapis-fgprov",
+      "sha": "baf7d27e9bf3d45d20daedaa58e74b0818a02e27",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "linux-rockchip-rkbin",
+      "sha": "9c3da090504a523016552a67fdf7993a2538b5d0",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "linux-rockchip-tools",
+      "sha": "5a4433d9bd3533c80a9426ecb20ed02a9d0b807d",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "linux-rockchip-docs",
+      "sha": "8ec0774bdd32ed2f22281d26e2be12630bce32fe",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "linux-rockchip-mkosi",
+      "sha": "cbd41a0df7f77b26707e05584c07222530ca36bc",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-04",
+      "repo": "linux-rockchip-bsp-tools",
+      "sha": "cb63399f0f9ea8e29a53d01240c5871647206f75",
+      "state": "created"
+    }
+  ],
+  "schema": "pamir-rk3576.nightly.v1",
+  "skipped": [
+    {
+      "created_at": "2026-08-27T23:12:09Z",
+      "head_ref": "fix/lt7911d-orientation-reset",
+      "head_sha": "5763c0fcf6c26ce41e7294d61fa7b025ee3e4cb7",
+      "number": 133,
+      "reason": "targets fix/tcpm-boot-rediscover, not main",
+      "repo": "linux-rockchip-kernel",
+      "title": "media: i2c: lt7911d: only reset the bridge when the orientation gpio changes",
+      "url": "https://github.com/pamir-ai-pkgs/linux-rockchip-kernel/pull/133"
+    }
+  ],
+  "tag": "rk3576-v0.1.2-nightly.7",
+  "version": "v0.1.2-nightly.7"
+}
