@@ -16,7 +16,7 @@
   <project name="lapis" path="external/lapis" revision="d254a3918bb0673e93ccfc5a3f21d65c1d6f1c8f" upstream="refs/heads/main"/>
   <project name="lapis-telemetryd" path="external/lapis-telemetryd" revision="42895e9e9ff5a138907c478819b073ef80402350" upstream="refs/heads/main"/>
   <project name="lapis-ota" path="external/lapis-ota" revision="d25f69fb3e3c2b7f6594d887acf35c2952c85199" upstream="refs/heads/main"/>
-  <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="7c6eb2af2e027e378a75c65662829523cf00d7b4" upstream="refs/heads/build/rc3-audio-bluetooth-20260910"/>
+  <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="7015c8891227dcad97e0c208cf3da53293eea1b2" upstream="refs/heads/build/rc3-onboarding-20260910"/>
   <project name="lapis-healthd" path="external/lapis-healthd" revision="1b4582b802f4b97698dac6b86e79674008a98f96" upstream="refs/heads/main"/>
   <project name="lapis-fgprov" path="external/lapis-fgprov" revision="baf7d27e9bf3d45d20daedaa58e74b0818a02e27" upstream="refs/heads/main"/>
   <project name="linux-rockchip-rkbin" path="rkbin" revision="9c3da090504a523016552a67fdf7993a2538b5d0" upstream="refs/heads/main"/>
