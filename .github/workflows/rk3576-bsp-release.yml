@@ -35,7 +35,12 @@ concurrency:
 
 jobs:
   build:
-    name: Build and publish update.img
+    name: Build and publish ${{ matrix.board }} images
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        board: [evt3, dvt]
     runs-on:
       - self-hosted
       - linux
@@ -54,7 +59,7 @@ jobs:
       # fetches through the git CLI, which honours the rewrite configured in
       # "Configure GitHub authentication".
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-      DEFCONFIG: rockchip_rk3576_lapis_evt3_defconfig
+      BOARD_VARIANT: ${{ matrix.board }}
       MANIFEST_FILE: rk3576-debian-ab.xml
       MANIFEST_URL: https://github.com/pamir-ai-pkgs/manifest
       MIN_FREE_GIB: "50"
@@ -63,7 +68,6 @@ jobs:
       PRE_COMMIT_HOME: /srv/bsp/pre-commit-cache
       REPO_MIRROR: /srv/bsp/repo-mirror
       S3_BUCKET: lapis-os-artifacts
-      SECURE_DEFCONFIG: rockchip_rk3576_lapis_evt3_secure_defconfig
       UV_CACHE_DIR: /srv/bsp/uv-cache
       WORK_ROOT: /srv/bsp/workspaces
       XDG_CACHE_HOME: /srv/bsp/cache
@@ -222,6 +226,42 @@ jobs:
             sec_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/nightly/${version}-sec/${build_id}"
           fi
 
+          board="${BOARD_VARIANT:-evt3}"
+          case "$board" in evt3|dvt) ;; *) echo "unsupported board: $board" >&2; exit 1 ;; esac
+          sec_sdk_dir="${WORK_ROOT%/}/pamir-rk3576-secure"
+          dev_asset_suffix=""
+          sec_asset_suffix="-secure"
+          dev_image_label="Dev"
+          sec_image_label="Secure"
+          dev_notes_mode="replace"
+          dev_pointer_name="latest.json"
+          dev_stable_pointer_name="dev-latest.json"
+          sec_pointer_name="sec-latest.json"
+          if [[ "$board" == dvt ]]; then
+            sdk_dir="${WORK_ROOT%/}/pamir-rk3576-dvt-${channel}"
+            sec_sdk_dir="${WORK_ROOT%/}/pamir-rk3576-dvt-secure"
+            dev_asset_suffix="-dvt"
+            sec_asset_suffix="-dvt-secure"
+            dev_image_label="DVT-Dev"
+            sec_image_label="DVT-Secure"
+            dev_notes_mode="append"
+            dev_pointer_name="dvt-latest.json"
+            dev_stable_pointer_name="dvt-dev-latest.json"
+            sec_pointer_name="dvt-sec-latest.json"
+            case "$channel" in
+              stable)
+                dev_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/releases/${version}-dvt"
+                sec_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/releases/${version}-dvt-sec" ;;
+              candidate|nightly)
+                prefix_group=candidates
+                [[ "$channel" != nightly ]] || prefix_group=nightly
+                dev_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/${prefix_group}/${version}-dvt/${build_id}"
+                sec_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/${prefix_group}/${version}-dvt-sec/${build_id}" ;;
+              *)
+                dev_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/${channel}/${manifest_ref//\//-}-dvt/${build_id}" ;;
+            esac
+          fi
+
           # Prerelease channels bake their prerelease suffix
           # (v0.1.0-rc.2, v0.2.0-nightly.N) so a device reports exactly
           # which build it runs and current_version_full stays truthful
@@ -240,7 +280,17 @@ jobs:
             echo "CHANNEL=$channel"
             echo "MANIFEST_REF=$manifest_ref"
             echo "SDK_DIR=$sdk_dir"
-            echo "SEC_SDK_DIR=${WORK_ROOT%/}/pamir-rk3576-secure"
+            echo "SEC_SDK_DIR=$sec_sdk_dir"
+            echo "DEFCONFIG=rockchip_rk3576_lapis_${board}_defconfig"
+            echo "SECURE_DEFCONFIG=rockchip_rk3576_lapis_${board}_secure_defconfig"
+            echo "DEV_ASSET_SUFFIX=$dev_asset_suffix"
+            echo "SEC_ASSET_SUFFIX=$sec_asset_suffix"
+            echo "DEV_IMAGE_LABEL=$dev_image_label"
+            echo "SEC_IMAGE_LABEL=$sec_image_label"
+            echo "DEV_NOTES_MODE=$dev_notes_mode"
+            echo "DEV_POINTER_NAME=$dev_pointer_name"
+            echo "DEV_STABLE_POINTER_NAME=$dev_stable_pointer_name"
+            echo "SEC_POINTER_NAME=$sec_pointer_name"
             echo "VERSION=${version:-rk3576-${channel}-${build_id}}"
           } >>"$GITHUB_ENV"
 
@@ -269,7 +319,7 @@ jobs:
           # must not survive the bookworm->trixie switch or apt resolves stale
           # bookworm packages (libpipewire deb12u1, old libdrm/libwayland) into
           # trixie. Wipe every location mkosi may cache the base/packages in.
-          for workspace in "$WORK_ROOT"/pamir-rk3576-*; do
+          for workspace in "$SDK_DIR" "$SEC_SDK_DIR"; do
             rm -rf "$workspace/output" "$workspace/rockdev" \
                    "$workspace/mkosi/mkosi.cache" "$workspace/mkosi/mkosi.builddir" \
                    "$workspace/mkosi"/mkosi.cache.* 2>/dev/null || true
@@ -425,9 +475,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
         run: |
-          # DEV_S3_PREFIX is empty except on nightly, where it moves the leg
-          # under nightly/; the driver keeps its own channel layout otherwise.
+          # DVT and nightly builds use explicit prefixes to keep their artifacts
+          # separate; EVT3 otherwise retains the driver's existing layout.
           cd "$SDK_DIR"
+          RELEASE_IMAGE_LABEL="$DEV_IMAGE_LABEL" \
+          CHANNEL_POINTER_NAME="$DEV_POINTER_NAME" \
+          STABLE_POINTER_NAME="$DEV_STABLE_POINTER_NAME" \
           S3_PREFIX="$DEV_S3_PREFIX" \
           RAUC_BUNDLE=1 \
             bsp-tools/ci/build-and-upload-release.sh
@@ -439,19 +492,21 @@ jobs:
           GITHUB_RELEASE_REPOSITORY: ${{ github.repository }}
         run: |
           cd "$SDK_DIR"
-          bsp-tools/ci/publish-github-release.sh
+          ASSET_NAME_SUFFIX="$DEV_ASSET_SUFFIX" \
+          RELEASE_NOTES_MODE="$DEV_NOTES_MODE" \
+            bsp-tools/ci/publish-github-release.sh
 
       # Only publish OTA for final release tags. Nightlies are not published
       # to any OTA channel: their bundles are on S3 and attached to the
       # GitHub prerelease.
       - name: Publish dev OTA release
-        if: env.CHANNEL == 'stable'
+        if: env.CHANNEL == 'stable' && env.BOARD_VARIANT == 'evt3'
         shell: bash
         run: |
           # Dev images poll lapis/dev.
           manifest-checkout/ci/ota-publish-release.sh "$SDK_DIR" dev
 
-      # Secure EVT3 leg: tagged builds ship the signed secure image, built
+      # Secure leg for the selected board: tagged builds ship the signed secure image, built
       # serially after the dev leg so its failure cannot block that release.
       # Nightlies build it too, uploaded under nightly/<tag>-sec only and not
       # published to any OTA channel.
@@ -519,8 +574,9 @@ jobs:
           cd "$SEC_SDK_DIR"
           SDK_DIR="$SEC_SDK_DIR" \
           DEFCONFIG="$SECURE_DEFCONFIG" \
-          STABLE_POINTER_NAME=sec-latest.json \
-          CHANNEL_POINTER_NAME=sec-latest.json \
+          STABLE_POINTER_NAME="$SEC_POINTER_NAME" \
+          CHANNEL_POINTER_NAME="$SEC_POINTER_NAME" \
+          RELEASE_IMAGE_LABEL="$SEC_IMAGE_LABEL" \
           RAUC_BUNDLE=1 \
           S3_PREFIX="$SEC_S3_PREFIX" \
             bsp-tools/ci/build-and-upload-release.sh
@@ -534,12 +590,12 @@ jobs:
         run: |
           cd "$SEC_SDK_DIR"
           SDK_DIR="$SEC_SDK_DIR" \
-          ASSET_NAME_SUFFIX=-secure \
+          ASSET_NAME_SUFFIX="$SEC_ASSET_SUFFIX" \
           RELEASE_NOTES_MODE=append \
             bsp-tools/ci/publish-github-release.sh
 
       - name: Publish secure OTA release
-        if: env.CHANNEL == 'stable'
+        if: env.CHANNEL == 'stable' && env.BOARD_VARIANT == 'evt3'
         shell: bash
         run: |
           # Secure images poll lapis/sit.
