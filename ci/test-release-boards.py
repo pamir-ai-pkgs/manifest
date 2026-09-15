@@ -9,6 +9,27 @@ import yaml
 WORKFLOW = Path(__file__).parents[1] / '.github/workflows/rk3576-bsp-release.yml'
 
 class BoardReleaseTests(unittest.TestCase):
+    def test_authentication_setup_recovers_after_interrupted_cleanup(self):
+        job = yaml.safe_load(WORKFLOW.read_text())['jobs']['build']
+        body = next(s['run'] for s in job['steps'] if s.get('name') == 'Configure GitHub authentication')
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            stub = root / 'gh'
+            stub.write_text('#!/bin/sh\nexit 0\n')
+            stub.chmod(0o755)
+            env = dict(os.environ, HOME=d, GH_TOKEN='test-token',
+                       GIT_CONFIG_GLOBAL=str(root / '.gitconfig'),
+                       PATH=d + os.pathsep + os.environ['PATH'])
+            for _ in range(2):
+                subprocess.run(['bash', '-e', '-c', body], env=env, check=True)
+            values = subprocess.check_output(
+                ['git', 'config', '--global', '--get-all',
+                 'url.https://x-access-token:test-token@github.com/pamir-ai-pkgs/.insteadOf'],
+                env=env, text=True).splitlines()
+            self.assertEqual(values, ['https://github.com/pamir-ai-pkgs/',
+                                      'ssh://git@github.com/pamir-ai-pkgs/',
+                                      'git@github.com:pamir-ai-pkgs/'])
+
     def test_both_boards_have_serial_independent_builds(self):
         job = yaml.safe_load(WORKFLOW.read_text())['jobs']['build']
         self.assertEqual(job['strategy']['max-parallel'], 1)
