@@ -36,5 +36,22 @@ class BoardReleaseTests(unittest.TestCase):
         self.assertTrue(results[1]['DEV_S3_PREFIX'].endswith('/rk3576-v0.2.0-rc.1-dvt/12345-1'))
         self.assertTrue(results[1]['SEC_S3_PREFIX'].endswith('/rk3576-v0.2.0-rc.1-dvt-sec/12345-1'))
 
+    def test_cleanup_leaves_other_board_outputs_intact(self):
+        job = yaml.safe_load(WORKFLOW.read_text())['jobs']['build']
+        body = next(s['run'] for s in job['steps'] if s.get('name') == 'Clean stale BSP outputs')
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            names = ['pamir-rk3576-candidate', 'pamir-rk3576-secure',
+                     'pamir-rk3576-dvt-candidate', 'pamir-rk3576-dvt-secure']
+            for name in names:
+                (root / name / 'output').mkdir(parents=True)
+            env = dict(os.environ, WORK_ROOT=d, SDK_DIR=str(root / names[0]),
+                       SEC_SDK_DIR=str(root / names[1]), XDG_CACHE_HOME=str(root / 'cache'))
+            subprocess.run(['bash', '-e', '-c', body], env=env, check=True)
+            self.assertFalse((root / names[0] / 'output').exists())
+            self.assertFalse((root / names[1] / 'output').exists())
+            self.assertTrue((root / names[2] / 'output').exists())
+            self.assertTrue((root / names[3] / 'output').exists())
+
 if __name__ == '__main__':
     unittest.main()
