@@ -7,6 +7,7 @@
 #
 #   s3://$S3_BUCKET/pamir-rk3576/nightly/<tag>/       dev-leg release dirs
 #   s3://$S3_BUCKET/pamir-rk3576/nightly/<tag>-sec/   prod-leg release dirs
+#   s3://$S3_BUCKET/pamir-rk3576/nightly/<tag>-dvt/   DVT dev-leg release dirs
 #   GitHub prerelease <tag>                           the tag itself stays
 #
 # Every nightly is independent, so a failure on one is reported and the rest
@@ -40,7 +41,8 @@ for tag in "$@"; do
 		failures=$((failures + 1))
 		continue
 	fi
-	for prefix in "pamir-rk3576/nightly/${tag}/" "pamir-rk3576/nightly/${tag}-sec/"; do
+	for prefix in "pamir-rk3576/nightly/${tag}/" "pamir-rk3576/nightly/${tag}-sec/" \
+		"pamir-rk3576/nightly/${tag}-dvt/"; do
 		if ! aws s3 rm "s3://${bucket}/${prefix}" --recursive --only-show-errors; then
 			echo "::warning::failed to remove s3://${bucket}/${prefix}" >&2
 			failures=$((failures + 1))
