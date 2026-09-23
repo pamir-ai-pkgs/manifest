@@ -1,0 +1,107 @@
+{
+  "branch": "nightly/2026-09-23",
+  "date": "2026-09-23",
+  "included": [],
+  "repos": [
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "manifest",
+      "sha": "67d152b9f51555cf38fdf04e21dbf0fb38540b9b",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "linux-rockchip-device-rockchip",
+      "sha": "008049ec8af760576c50371d8b9d6adca0a847dc",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "linux-rockchip-u-boot",
+      "sha": "fdd691c6d4b7d638b0d6fdcfb189f4d30efc2cc9",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "linux-rockchip-kernel",
+      "sha": "a2582129c6e71e99712b2b84bbd1855b3bd4984f",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "linux-rockchip-recovery",
+      "sha": "bbd736530b62d5bf2b32eca7cb9f4b717a710005",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "lapis",
+      "sha": "cc6f6c32ac5d89efef8ce4e5a85f1b0b247f016e",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "lapis-telemetryd",
+      "sha": "e2bf886a4410e6b7cd6bb05b7b510a2f0251b4c9",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "lapis-ota",
+      "sha": "098a1f91ec3388f2ba60e4c6640ffc2ef2e16e3c",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "lapis-hwserviced",
+      "sha": "87e9b97ae19d1c29b51873ed13cc3d53b9f2b250",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "lapis-healthd",
+      "sha": "d933c6ec7fdfb06a8016038ce27137651f7a4bc1",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "lapis-fgprov",
+      "sha": "baf7d27e9bf3d45d20daedaa58e74b0818a02e27",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "linux-rockchip-rkbin",
+      "sha": "9c3da090504a523016552a67fdf7993a2538b5d0",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "linux-rockchip-tools",
+      "sha": "5a4433d9bd3533c80a9426ecb20ed02a9d0b807d",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "linux-rockchip-docs",
+      "sha": "8ec0774bdd32ed2f22281d26e2be12630bce32fe",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "linux-rockchip-mkosi",
+      "sha": "7ccdc7d607a274ba7f7ed6f3121c1b48088f34dc",
+      "state": "created"
+    },
+    {
+      "branch": "nightly/2026-09-23",
+      "repo": "linux-rockchip-bsp-tools",
+      "sha": "3084b668f8f7ff02d9de9d0cfa6bf5828c6ab2bb",
+      "state": "created"
+    }
+  ],
+  "schema": "pamir-rk3576.nightly.v1",
+  "skipped": [],
+  "tag": "rk3576-v0.1.2-nightly.24",
+  "version": "v0.1.2-nightly.24"
+}
