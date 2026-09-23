@@ -53,5 +53,25 @@ class BoardReleaseTests(unittest.TestCase):
             self.assertTrue((root / names[2] / 'output').exists())
             self.assertTrue((root / names[3] / 'output').exists())
 
+    def test_nightly_builds_the_dvt_dev_leg_only(self):
+        job = yaml.safe_load(WORKFLOW.read_text())['jobs']['build']
+        body = next(s['run'] for s in job['steps'] if s.get('name') == 'Resolve build parameters')
+        with tempfile.NamedTemporaryFile() as f:
+            env = dict(os.environ, GITHUB_ENV=f.name, GITHUB_EVENT_NAME='push',
+                       GITHUB_REF_TYPE='tag', GITHUB_REF_NAME='rk3576-v0.2.0-nightly.3',
+                       GITHUB_RUN_ID='12345', GITHUB_RUN_ATTEMPT='1',
+                       S3_BUCKET='test-bucket', WORK_ROOT='/tmp/work', BOARD_VARIANT='dvt')
+            subprocess.run(['bash', '-e', '-c', body], env=env, check=True)
+            values = dict(line.split('=', 1) for line in Path(f.name).read_text().splitlines())
+        self.assertEqual(values['DEV_S3_PREFIX'],
+                         's3://test-bucket/pamir-rk3576/nightly/rk3576-v0.2.0-nightly.3-dvt/12345-1')
+        self.assertEqual(values['DEV_ASSET_SUFFIX'], '-dvt')
+        secure = [s for s in job['steps'] if s['name'] in (
+            'Bootstrap secure workspace BSP tools', 'Stage signing keys into the secure workspace',
+            'Build and upload secure release', 'Attach secure artifacts to the GitHub release')]
+        self.assertEqual(len(secure), 4)
+        for step in secure:
+            self.assertIn("(env.CHANNEL == 'nightly' && env.BOARD_VARIANT == 'evt3')", step['if'])
+
 if __name__ == '__main__':
     unittest.main()

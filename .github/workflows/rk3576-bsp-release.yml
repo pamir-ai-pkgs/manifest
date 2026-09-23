@@ -513,10 +513,10 @@ jobs:
 
       # Secure leg for the selected board: tagged builds ship the signed secure image, built
       # serially after the dev leg so its failure cannot block that release.
-      # Nightlies build it too, uploaded under nightly/<tag>-sec only and not
+      # Nightlies build it for EVT3 only, uploaded under nightly/<tag>-sec and not
       # published to any OTA channel.
       - name: Bootstrap secure workspace BSP tools
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || (env.CHANNEL == 'nightly' && env.BOARD_VARIANT == 'evt3')
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
@@ -526,7 +526,7 @@ jobs:
           manifest-checkout/ci/bootstrap-workspace.sh "$SEC_SDK_DIR"
 
       - name: Stage signing keys into the secure workspace
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || (env.CHANNEL == 'nightly' && env.BOARD_VARIANT == 'evt3')
         shell: bash
         run: |
           # Reuse the OTP-verified key set staged above; cp -a keeps the
@@ -542,7 +542,7 @@ jobs:
           cp -a "$SDK_DIR/u-boot/keys/." "$SEC_SDK_DIR/u-boot/keys/"
 
       - name: Build and upload secure release
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || (env.CHANNEL == 'nightly' && env.BOARD_VARIANT == 'evt3')
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
@@ -592,7 +592,7 @@ jobs:
             bsp-tools/ci/build-and-upload-release.sh
 
       - name: Attach secure artifacts to the GitHub release
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || (env.CHANNEL == 'nightly' && env.BOARD_VARIANT == 'evt3')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

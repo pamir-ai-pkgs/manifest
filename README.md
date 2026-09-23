@@ -213,7 +213,13 @@ do not add AWS keys to GitHub secrets.
   the secure leg serially, uploads it under
   `.../nightly/rk3576-vX.Y.Z-nightly.N-sec/<build-id>/`, moves
   `channels/nightly/sec-latest.json`, and attaches its artifacts to the
-  prerelease. Neither leg is published to an OTA channel.
+  prerelease. A second, serial job builds the DVT dev image
+  (`rockchip_rk3576_lapis_dvt_defconfig`, bundle
+  `lapis-dvt-dev-vX.Y.Z-nightly.N.raucb`) under
+  `.../nightly/rk3576-vX.Y.Z-nightly.N-dvt/<build-id>/`, moves
+  `channels/nightly/dvt-latest.json`, and attaches it with `SHA256SUMS-dvt`;
+  nightlies build no DVT secure image. No leg is published to an OTA
+  channel.
 - Manual dispatch: build `scratch`, `dev`, `candidate`, `stable`, or
   `nightly` from a selected manifest ref. Candidate, stable, and nightly
   dispatches must build the same existing manifest tag they publish.
@@ -265,9 +271,9 @@ under the prefixes above and attached to the GitHub prerelease.
 
 Retention is 14 days. The scheduled run's `prune` job deletes `nightly/*`
 branches older than that in every repository, then removes the expired
-nightlies' `nightly/<tag>/` and `nightly/<tag>-sec/` S3 prefixes and their
-GitHub prereleases. The newest nightly is always kept, and nightly tags are never
-deleted: they are the version record and the counter.
+nightlies' `nightly/<tag>/`, `nightly/<tag>-sec/` and `nightly/<tag>-dvt/` S3
+prefixes and their GitHub prereleases. The newest nightly is always kept, and
+nightly tags are never deleted: they are the version record and the counter.
 
 Dispatch inputs: `date` reruns or pre-stages a specific day, `dry_run`
 selects and reports without writing anything, `prune` runs the prune job on a

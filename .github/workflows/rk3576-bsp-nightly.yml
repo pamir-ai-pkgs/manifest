@@ -7,8 +7,8 @@ name: RK3576 BSP Nightly
 # a commit-pinned manifest, and tags it rk3576-vX.Y.Z-nightly.N. Pushing that
 # tag with PAMIR_GITHUB_TOKEN is what starts the build: rk3576-bsp-release.yml
 # recognises the nightly tag form and builds it on its nightly channel (both
-# legs uploaded to S3 and attached to a GitHub prerelease; neither leg is
-# published to an OTA channel).
+# EVT3 legs and the DVT dev leg uploaded to S3 and attached to a GitHub
+# prerelease; no leg is published to an OTA channel).
 
 on:
   schedule:
