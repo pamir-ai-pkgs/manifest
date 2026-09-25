@@ -13,7 +13,7 @@
     <linkfile src="." dest="kernel"/>
   </project>
   <project name="linux-rockchip-recovery" path="external/recovery" revision="bbd736530b62d5bf2b32eca7cb9f4b717a710005"/>
-  <project name="lapis" path="external/lapis" revision="fc24281503c3e2a3221a553c9337bd3e9c775a73"/>
+  <project name="lapis" path="external/lapis" revision="119b562db3fb1e7e73c10623129786d84e9babaf"/>
   <project name="lapis-telemetryd" path="external/lapis-telemetryd" revision="97bb97371224537c5aa0508c3ac1266d85b14e5b"/>
   <project name="lapis-ota" path="external/lapis-ota" revision="f114b719c0b3441e8fe24cbe2f7fcc0e46658dec"/>
   <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="7352a4beb8e3dd92ce3b21a7082eeb6cd14e2f30"/>
