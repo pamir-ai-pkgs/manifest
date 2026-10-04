@@ -6,6 +6,10 @@ on:
       - rk3576-v*
   workflow_dispatch:
     inputs:
+      diagnose_runner:
+        description: Inspect runner user namespace mappings without building.
+        type: boolean
+        default: false
       manifest_ref:
         description: Manifest branch, tag, or ref to build.
         required: true
@@ -34,7 +38,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  diagnose:
+    if: inputs.diagnose_runner == true
+    runs-on: [self-hosted, linux, x64, rk3576, bsp]
+    timeout-minutes: 5
+    steps:
+      - name: Inspect user namespace mappings
+        shell: bash
+        run: |
+          id
+          unshare --version
+          printf 'Configured subordinate IDs:\n'
+          awk -F: -v user="$(id -un)" -v uid="$(id -u)" '$1 == user || $1 == uid {print FILENAME ":" $0}' /etc/subuid /etc/subgid
+          printf 'Actual auto/root mappings:\n'
+          unshare --map-auto --map-root-user sh -c 'cat /proc/self/uid_map; cat /proc/self/gid_map'
+          printf 'Subordinate ID helper permissions:\n'
+          ls -l /usr/bin/newuidmap /usr/bin/newgidmap
   build:
+    if: inputs.diagnose_runner != true
     name: Build and publish ${{ matrix.board }} images
     strategy:
       fail-fast: false
