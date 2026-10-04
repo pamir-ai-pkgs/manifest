@@ -53,7 +53,7 @@ jobs:
         run: |
           sudo python3 - <<'PYREPAIR'
           from pathlib import Path
-          import shutil, subprocess, time
+          import os, shutil, tempfile, time
           paths = [Path('/etc/subuid'), Path('/etc/subgid')]
           plans = []
           for path in paths:
@@ -68,13 +68,28 @@ jobs:
                   if name not in ('admin', '1000') and int(start) <= 165536 < int(start) + int(size):
                       raise SystemExit(f'New ID overlaps {name} in {path}; no changes made')
               if count == 65536:
-                  kind = 'uids' if path.name == 'subuid' else 'gids'
-                  plans.extend([f'--del-sub{kind}', '100000-165535', f'--add-sub{kind}', '100000-165536'])
+                  plans.append((path, path.read_text()))
           if plans:
               stamp = str(time.time_ns())
               for path in paths:
                   shutil.copy2(path, str(path) + '.rc2-backup-' + stamp)
-              subprocess.run(['usermod', *plans, 'admin'], check=True)
+              # usermod refuses to edit an active runner account. Only replace
+              # its subordinate-ID count; keep its UID, GID and other rows intact.
+              for path, before in plans:
+                  if path.read_text() != before:
+                      raise SystemExit(f'{path} changed during repair')
+                  lines = before.splitlines(keepends=True)
+                  after = ''.join('admin:100000:65537\n' if line.rstrip('\n') == 'admin:100000:65536' else line for line in lines)
+                  if after == before:
+                      raise SystemExit(f'Expected exact allocation absent in {path}')
+                  fd, name = tempfile.mkstemp(dir=path.parent, prefix=path.name+'.rc2-')
+                  with os.fdopen(fd, 'w') as stream:
+                      stream.write(after)
+                      stream.flush()
+                      os.fsync(stream.fileno())
+                  shutil.copystat(path, name)
+                  os.chown(name, path.stat().st_uid, path.stat().st_gid)
+                  os.replace(name, path)
           PYREPAIR
       - name: Inspect user namespace mappings
         shell: bash
