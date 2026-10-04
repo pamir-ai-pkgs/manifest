@@ -6,6 +6,10 @@ on:
       - rk3576-v*
   workflow_dispatch:
     inputs:
+      repair_subids:
+        description: Extend the verified runner subordinate ID allocation by one.
+        type: boolean
+        default: false
       diagnose_runner:
         description: Inspect runner user namespace mappings without building.
         type: boolean
@@ -43,6 +47,35 @@ jobs:
     runs-on: [self-hosted, linux, x64, rk3576, bsp]
     timeout-minutes: 5
     steps:
+      - name: Extend subordinate ID allocation
+        if: inputs.repair_subids == true
+        shell: bash
+        run: |
+          sudo python3 - <<'PYREPAIR'
+          from pathlib import Path
+          import shutil, subprocess, time
+          paths = [Path('/etc/subuid'), Path('/etc/subgid')]
+          plans = []
+          for path in paths:
+              rows = [line.split(':') for line in path.read_text().splitlines() if line and not line.startswith('#')]
+              own = [row for row in rows if row[0] in ('admin', '1000')]
+              if len(own) != 1 or own[0][0] != 'admin' or int(own[0][1]) != 100000:
+                  raise SystemExit(f'Unexpected admin allocation in {path}; no changes made')
+              count = int(own[0][2])
+              if count not in (65536, 65537):
+                  raise SystemExit(f'Unexpected allocation size in {path}; no changes made')
+              for name, start, size in rows:
+                  if name not in ('admin', '1000') and int(start) <= 165536 < int(start) + int(size):
+                      raise SystemExit(f'New ID overlaps {name} in {path}; no changes made')
+              if count == 65536:
+                  kind = 'uids' if path.name == 'subuid' else 'gids'
+                  plans.extend([f'--del-sub{kind}', '100000-165535', f'--add-sub{kind}', '100000-165536'])
+          if plans:
+              stamp = str(time.time_ns())
+              for path in paths:
+                  shutil.copy2(path, str(path) + '.rc2-backup-' + stamp)
+              subprocess.run(['usermod', *plans, 'admin'], check=True)
+          PYREPAIR
       - name: Inspect user namespace mappings
         shell: bash
         run: |
@@ -54,6 +87,11 @@ jobs:
           unshare --map-auto --map-root-user sh -c 'cat /proc/self/uid_map; cat /proc/self/gid_map'
           printf 'Subordinate ID helper permissions:\n'
           ls -l /usr/bin/newuidmap /usr/bin/newgidmap
+          unshare --map-auto --map-root-user awk '
+            FILENAME ~ /uid_map/ && $1 == 1 && $3 >= 65536 { uid = 1 }
+            FILENAME ~ /gid_map/ && $1 == 1 && $3 >= 65536 { gid = 1 }
+            END { exit !(uid && gid) }
+          ' /proc/self/uid_map /proc/self/gid_map
   build:
     if: inputs.diagnose_runner != true
     name: Build and publish ${{ matrix.board }} images
