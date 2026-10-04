@@ -3,27 +3,27 @@
   <remote name="github" fetch="https://github.com/pamir-ai-pkgs/" review="https://github.com/pamir-ai-pkgs/" />
   <default remote="github" revision="main" dest-branch="main" sync-j="4" sync-c="true" />
 
-  <project name="linux-rockchip-device-rockchip" path="device/rockchip" revision="4bc362b21b6b165ec2f7dd20fdca8c22be0d5518">
+  <project name="linux-rockchip-device-rockchip" path="device/rockchip" revision="69e005a99cb60f2d6125f3c262fcac582d501db3">
     <linkfile src="common/scripts/build.sh" dest="build.sh"/>
     <linkfile src="common/Makefile" dest="Makefile"/>
     <linkfile src="common/scripts/rkflash.sh" dest="rkflash.sh"/>
   </project>
-  <project name="linux-rockchip-u-boot" path="u-boot" revision="47d84d9b7e6bfbcd46298fd4091cbc0de07ccd9e"/>
-  <project name="linux-rockchip-kernel" path="kernel-6.1" revision="9db686cec0d33a1260332a2c561552d9e6ae48b6">
+  <project name="linux-rockchip-u-boot" path="u-boot" revision="78a94c6d75862476950812a4d9d2e67fbdeee4d5"/>
+  <project name="linux-rockchip-kernel" path="kernel-6.1" revision="1a3c3b66d7e1356ac23cd44e2032baea299f95b3">
     <linkfile src="." dest="kernel"/>
   </project>
   <project name="linux-rockchip-recovery" path="external/recovery" revision="30d5db6f6d44a42842012b6685a94cdf3495efb9"/>
   <project name="lapis" path="external/lapis" revision="119b562db3fb1e7e73c10623129786d84e9babaf"/>
   <project name="lapis-telemetryd" path="external/lapis-telemetryd" revision="fa525c6e2dacbc34661ee8b5b93b1c81ffd1fbb9"/>
-  <project name="lapis-ota" path="external/lapis-ota" revision="223904f451788dfcf49dc8fa0ab2938710a259b6"/>
-  <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="ac39e42a8b348f3eb467f71e47763994827284c4"/>
-  <project name="lapis-healthd" path="external/lapis-healthd" revision="1f7e72c10bc894456b95a41b0ed9415cc213c21a"/>
+  <project name="lapis-ota" path="external/lapis-ota" revision="de3b7a2e9842d8968c8de18652bc2622faed9c8b"/>
+  <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="81b2f075c726705e12f208074d12cd05f35133ef"/>
+  <project name="lapis-healthd" path="external/lapis-healthd" revision="d061b2f9756a422d10cad61c309d029e094079c5"/>
   <project name="lapis-fgprov" path="external/lapis-fgprov" revision="30cbbfdfed0a429e960cfde65e0437125c608222"/>
   <project name="linux-rockchip-rkbin" path="rkbin" revision="9c3da090504a523016552a67fdf7993a2538b5d0"/>
   <project name="linux-rockchip-tools" path="tools" revision="5a4433d9bd3533c80a9426ecb20ed02a9d0b807d"/>
   <project name="linux-rockchip-docs" path="docs" revision="a8b8fc36f13b266d247601e80d8366821bbb93b6"/>
-  <project name="linux-rockchip-mkosi" path="mkosi" revision="eccfcc189541d79ec829b77b536c55a4d9a7275b"/>
-  <project name="linux-rockchip-bsp-tools" path="bsp-tools" revision="12bc5380a7ef433a01f2012c1abe8dbe6d1a0800">
+  <project name="linux-rockchip-mkosi" path="mkosi" revision="90e30d9c8dee253cec0355ba32dfdb2dae79af9f"/>
+  <project name="linux-rockchip-bsp-tools" path="bsp-tools" revision="b68be34868fcab14a94bbcc24ca9092953a991ed">
     <linkfile src="release/CHANGELOG.md" dest="CHANGELOG.md"/>
     <linkfile src="release/README.md" dest="RELEASE.md"/>
   </project>
