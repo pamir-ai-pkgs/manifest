@@ -175,6 +175,34 @@ jobs:
     runs-on: [self-hosted, linux, x64, rk3576, bsp]
     timeout-minutes: 20
     steps:
+      - name: Set up publisher Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: false
+      - name: Build and test pinned OTA publisher
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          GOPRIVATE: github.com/Pamir-AI/*,github.com/pamir-ai-pkgs/*
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: credential.helper
+          GIT_CONFIG_VALUE_0: ''
+          GIT_CONFIG_KEY_1: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_1: '!gh auth git-credential'
+        run: |
+          set -euo pipefail
+          source=/srv/bsp/workspaces/pamir-rk3576-dvt-candidate/bsp-tools
+          revision=b68be34868fcab14a94bbcc24ca9092953a991ed
+          test "$(git -C "$source" rev-parse HEAD)" = "$revision"
+          build_dir=$(mktemp -d "$RUNNER_TEMP/ota-publisher.XXXXXX")
+          git -C "$source" archive "$revision" ota-publish | tar -x -C "$build_dir"
+          cd "$build_dir/ota-publish"
+          go vet ./...
+          go test ./...
+          go build -trimpath -o "$build_dir/ota-publish-cli" .
+          echo "OTA_PUBLISH_BIN=$build_dir/ota-publish-cli" >> "$GITHUB_ENV"
+          sha256sum "$build_dir/ota-publish-cli"
       - name: Verify and publish DVT rc.2 to shared dev channel
         shell: bash
         run: |
@@ -235,7 +263,7 @@ jobs:
             validate_offer(before);print('Matching release is already live; no duplicate publication.',flush=True)
            else:
             assert not before.get('update_available'),'Unexpected newer dev release already offered; refusing to supersede it blindly'
-            subprocess.run(['ota-publish','publish','--bundle',str(bundle),'--uboot',str(uboot),'--board','lapis','--channel','dev','--version',version,'--region','us-west-2','--bucket','pamir-ota-bundles','--table','lapis-ota-releases'],env=env,check=True)
+            subprocess.run([os.environ['OTA_PUBLISH_BIN'],'publish','--bundle',str(bundle),'--uboot',str(uboot),'--board','lapis','--channel','dev','--version',version,'--region','us-west-2','--bucket','pamir-ota-bundles','--table','lapis-ota-releases'],env=env,check=True)
            after=check('0.2.0-rc.1');validate_offer(after)
            installed=check(version);assert not installed['update_available'],'Installed rc.2 is offered a reinstall'
            print('OTA_PUBLISH_VERIFIED '+json.dumps(dict(board='lapis',channel='dev',version=version,bundle_sha256=want_bundle,uboot_sha256=want_uboot,manifest_signature_verified=True,offer_from_rc1_verified=True,no_reinstall_on_rc2_verified=True)),flush=True)
