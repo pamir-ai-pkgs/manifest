@@ -6,6 +6,10 @@ on:
       - rk3576-v*
   workflow_dispatch:
     inputs:
+      verify_artifacts:
+        description: Verify retained rc.2 images read-only.
+        type: boolean
+        default: false
       repair_subids:
         description: Extend the verified runner subordinate ID allocation by one.
         type: boolean
@@ -45,7 +49,7 @@ jobs:
   diagnose:
     if: inputs.diagnose_runner == true
     runs-on: [self-hosted, linux, x64, rk3576, bsp]
-    timeout-minutes: 5
+    timeout-minutes: 20
     steps:
       - name: Extend subordinate ID allocation
         if: inputs.repair_subids == true
@@ -107,6 +111,60 @@ jobs:
             FILENAME ~ /gid_map/ && $1 == 1 && $3 >= 65536 { gid = 1 }
             END { exit !(uid && gid) }
           ' /proc/self/uid_map /proc/self/gid_map
+      - name: Verify retained rc.2 artifacts
+        if: inputs.verify_artifacts == true
+        shell: bash
+        run: |
+          python3 - <<'PYVERIFY'
+          from pathlib import Path
+          import hashlib,io,json,subprocess,tarfile,tempfile
+          BASE=Path('/srv/bsp/workspaces')
+          EXPECTED_SOURCE='122609bbbd87b191836bcddc3d767669690f2f7b'
+          def sha(path):
+           h=hashlib.sha256()
+           with path.open('rb') as f:
+            for block in iter(lambda:f.read(8*1024*1024),b''): h.update(block)
+           return h.hexdigest()
+          for name,channel,version,closure in [
+           ('pamir-rk3576-candidate','dev','2026.10.4','6wx388j6cy5m0d6sqa0in11fx908kn47-lapis-env'),
+           ('pamir-rk3576-secure','sit','2026.9.15','fss8vha6n2nb357mddyvqvdpkwx2gsg0-lapis-env'),
+           ('pamir-rk3576-dvt-candidate','dev','2026.10.4','6wx388j6cy5m0d6sqa0in11fx908kn47-lapis-env'),
+           ('pamir-rk3576-dvt-secure','sit','2026.9.15','fss8vha6n2nb357mddyvqvdpkwx2gsg0-lapis-env')]:
+           sdk=BASE/name; release=sdk/'output/releases/ci/37172720465-2'; rootfs=sdk/'mkosi/lapis-rootfs.img'
+           assert rootfs.is_file(),str(rootfs)
+           def read(path):
+            return subprocess.check_output(['debugfs','-R','cat '+path,str(rootfs)],stderr=subprocess.DEVNULL)
+           osrelease=read('/usr/lib/os-release').decode()
+           assert 'IMAGE_VERSION="v0.2.0-rc.2"' in osrelease or 'IMAGE_VERSION=v0.2.0-rc.2\n' in osrelease,osrelease
+           manifest=json.loads(read('/usr/share/lapis-update/bootstrap/manifest.json'))
+           assert manifest['channel']==channel
+           assert manifest['version']==version
+           assert manifest['min_os_version']=='0.2.0-rc.1'
+           assert manifest['toplevel_store_path']=='/nix/store/'+closure
+           assert read('/etc/lapis-update/channel-default').decode().strip()==channel
+           assert read('/usr/share/lapis/versions/update').decode().strip()=='1.1.10'
+           revision=subprocess.check_output(['git','-C',str(sdk/'external/lapis'),'rev-parse','HEAD'],text=True).strip()
+           assert revision==EXPECTED_SOURCE,revision
+           deb=sdk/'mkosi/packages/sdk-built/lapis-update_1.1.10_arm64.deb'
+           archive=subprocess.check_output(['dpkg-deb','--fsys-tarfile',str(deb)])
+           with tarfile.open(fileobj=io.BytesIO(archive)) as t: packaged=t.extractfile('./usr/bin/lapis-update').read()
+           binary=read('/usr/bin/lapis-update')
+           assert binary==packaged,'installed updater differs from freshly built package'
+           sums={line.split(None,1)[1].strip():line.split(None,1)[0] for line in (release/'SHA256SUMS').read_text().splitlines()}
+           results=[]
+           for rel,want in sums.items():
+            if rel=='IMAGES/update.img.xz' or rel=='IMAGES/uboot.img' or rel.endswith('.raucb'):
+             p=release/rel;actual=sha(p);assert actual==want,rel
+             results.append(dict(name=rel,size=p.stat().st_size,sha256=actual))
+           assert len(results)==3,results
+           bundle=next(release/x['name'] for x in results if x['name'].endswith('.raucb'))
+           with tempfile.TemporaryDirectory() as d:
+            ca=Path(d)/'ca.pem';ca.write_bytes(read('/etc/rauc/ca.cert.pem'));assert ca.stat().st_size>0
+            result=subprocess.run(['rauc','info','--keyring='+str(ca),str(bundle)],capture_output=True,text=True)
+            assert result.returncode==0,result.stderr
+            assert 'v0.2.0-rc.2' in result.stdout
+           print('RC2_VERIFIED '+json.dumps(dict(workspace=name,image_version='v0.2.0-rc.2',channel=channel,seed_version=version,closure=manifest['toplevel_store_path'],updater_revision=revision,updater_version='1.1.10',updater_sha256=hashlib.sha256(binary).hexdigest(),rauc_verified_against_image_ca=True,artifacts=results)),flush=True)
+          PYVERIFY
   build:
     if: inputs.diagnose_runner != true
     name: Build and publish ${{ matrix.board }} images
