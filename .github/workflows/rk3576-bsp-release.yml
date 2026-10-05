@@ -210,7 +210,7 @@ jobs:
            env.pop('AWS_PROFILE',None)
            identity=json.loads(subprocess.check_output(['aws','sts','get-caller-identity','--output','json'],env=env))
            assert identity['Account']=='322551983552'
-          assert identity['Arn'].startswith('arn:aws:sts::322551983552:assumed-role/lapis-ota-build/'),identity['Arn']
+           assert identity['Arn'].startswith('arn:aws:sts::322551983552:assumed-role/lapis-ota-build/'),identity['Arn']
            print('Publishing identity:',identity['Arn'],flush=True)
            tokens=subprocess.check_output(['aws','secretsmanager','get-secret-value','--secret-id','lapis-ota/fleet-tokens','--query','SecretString','--output','text'],env=env,text=True)
            token=next(x.strip() for x in reversed(tokens.splitlines()) if x.strip())
