@@ -6,6 +6,10 @@ on:
       - rk3576-v*
   workflow_dispatch:
     inputs:
+      publish_dvt_rc2_dev:
+        description: Publish the verified DVT rc.2 bundle to shared lapis/dev.
+        type: boolean
+        default: false
       verify_artifacts:
         description: Verify retained rc.2 images read-only.
         type: boolean
@@ -47,7 +51,7 @@ concurrency:
 
 jobs:
   diagnose:
-    if: inputs.diagnose_runner == true
+    if: inputs.diagnose_runner == true && inputs.publish_dvt_rc2_dev != true
     runs-on: [self-hosted, linux, x64, rk3576, bsp]
     timeout-minutes: 20
     steps:
@@ -166,8 +170,79 @@ jobs:
             assert 'v0.2.0-rc.2' in result.stdout
            print('RC2_VERIFIED '+json.dumps(dict(workspace=name,image_version='v0.2.0-rc.2',channel=channel,seed_version=version,closure=manifest['toplevel_store_path'],updater_revision=revision,updater_version='1.1.10',updater_sha256=hashlib.sha256(binary).hexdigest(),rauc_verified_against_image_ca=True,artifacts=results)),flush=True)
           PYVERIFY
+  publish_dvt_rc2_dev:
+    if: inputs.publish_dvt_rc2_dev == true
+    runs-on: [self-hosted, linux, x64, rk3576, bsp]
+    timeout-minutes: 20
+    steps:
+      - name: Verify and publish DVT rc.2 to shared dev channel
+        shell: bash
+        run: |
+          export PATH="$PATH:/usr/sbin:/sbin"
+          python3 - <<'PYPUBLISH'
+          from pathlib import Path
+          import base64,hashlib,json,os,subprocess,tempfile,urllib.parse,urllib.request
+          sdk=Path('/srv/bsp/workspaces/pamir-rk3576-dvt-candidate')
+          release=sdk/'output/releases/ci/37172720465-2'
+          bundle=release/'IMAGES/lapis-dvt-dev-v0.2.0-rc.2.raucb'
+          uboot=release/'IMAGES/uboot.img'
+          want_bundle='4f63ff16d10751e761ca582ebeba689e0fe046f0051df0b0ba452a65d7b9938f'
+          want_uboot='2a365ffce672b3ed97b557f74ba87d944ad221522cc65400c6e2b7156f8a7c60'
+          version='0.2.0-rc.2'
+          def digest(path):
+           h=hashlib.sha256()
+           with path.open('rb') as f:
+            for block in iter(lambda:f.read(8*1024*1024),b''):h.update(block)
+           return h.hexdigest()
+          assert digest(bundle)==want_bundle,'DVT bundle hash mismatch'
+          assert digest(uboot)==want_uboot,'DVT U-Boot hash mismatch'
+          assert bundle.stat().st_size==811133642 and uboot.stat().st_size==4194304
+          rootfs=sdk/'mkosi/lapis-rootfs.img'
+          def image_read(path):
+           return subprocess.check_output(['debugfs','-R','cat '+path,str(rootfs)],stderr=subprocess.DEVNULL)
+          with tempfile.TemporaryDirectory() as tmp:
+           tmp=Path(tmp)
+           ca=tmp/'ca.pem';ca.write_bytes(image_read('/etc/rauc/ca.cert.pem'))
+           info=subprocess.check_output(['rauc','info','--keyring='+str(ca),'--output-format=json',str(bundle)],text=True)
+           parsed=json.loads(info)
+           assert parsed['version']=='v'+version and parsed['compatible']=='pamir-lapis-rk3576-dev',parsed
+           env=dict(os.environ,AWS_REGION='us-west-2',AWS_DEFAULT_REGION='us-west-2')
+           env.pop('AWS_PROFILE',None)
+           creds=json.loads(subprocess.check_output(['aws','sts','assume-role','--role-arn','arn:aws:iam::322551983552:role/lapis-ota-publish-ci','--role-session-name','rc2-dvt-dev-publish','--output','json'],env=env))['Credentials']
+           env.update(AWS_ACCESS_KEY_ID=creds['AccessKeyId'],AWS_SECRET_ACCESS_KEY=creds['SecretAccessKey'],AWS_SESSION_TOKEN=creds['SessionToken'])
+           identity=json.loads(subprocess.check_output(['aws','sts','get-caller-identity','--output','json'],env=env))
+           assert identity['Account']=='322551983552'
+           print('Publishing identity:',identity['Arn'],flush=True)
+           tokens=subprocess.check_output(['aws','secretsmanager','get-secret-value','--secret-id','lapis-ota/fleet-tokens','--query','SecretString','--output','text'],env=env,text=True)
+           token=next(x.strip() for x in reversed(tokens.splitlines()) if x.strip())
+           pub=tmp/'manifest-key.der';pub.write_bytes(base64.b64decode(image_read('/etc/lapis-ota/manifest.p256.pub').strip()))
+           def check(current):
+            query=urllib.parse.urlencode(dict(board='lapis',channel='dev',current_version='0.2.0',current_version_full=current,machine_id='ci-rc2-dvt-publish-verifier'))
+            req=urllib.request.Request('https://bf0agb75f8.execute-api.us-west-2.amazonaws.com/api/v1/updates/check?'+query,headers={'Authorization':'LapisOTA-v1 '+token})
+            with urllib.request.urlopen(req,timeout=30) as response: result=json.load(response)
+            sig=result['signature'];assert sig['alg']=='ecdsa-p256-sha256-der',sig['alg']
+            payload={k:v for k,v in result.items() if k!='signature'}
+            data=tmp/'payload.json';data.write_text(json.dumps(payload,sort_keys=True,separators=(',',':'),ensure_ascii=False))
+            signature=tmp/'signature.der';signature.write_bytes(base64.b64decode(sig['value']))
+            subprocess.run(['openssl','dgst','-sha256','-verify',str(pub),'-keyform','DER','-signature',str(signature),str(data)],check=True,stdout=subprocess.DEVNULL)
+            assert result['board']=='lapis' and result['channel']=='dev'
+            return result
+           def validate_offer(result):
+            update=result['update'];assert result['update_available']
+            assert update['version']==version and update['sha256']==want_bundle and update['size']==811133642
+            assert update['uboot']['sha256']==want_uboot and update['uboot']['size']==4194304
+           before=check('0.2.0-rc.1')
+           if before.get('update',{}).get('version')==version:
+            validate_offer(before);print('Matching release is already live; no duplicate publication.',flush=True)
+           else:
+            assert not before.get('update_available'),'Unexpected newer dev release already offered; refusing to supersede it blindly'
+            subprocess.run(['ota-publish','publish','--bundle',str(bundle),'--uboot',str(uboot),'--board','lapis','--channel','dev','--version',version,'--region','us-west-2','--bucket','pamir-ota-bundles','--table','lapis-ota-releases'],env=env,check=True)
+           after=check('0.2.0-rc.1');validate_offer(after)
+           installed=check(version);assert not installed['update_available'],'Installed rc.2 is offered a reinstall'
+           print('OTA_PUBLISH_VERIFIED '+json.dumps(dict(board='lapis',channel='dev',version=version,bundle_sha256=want_bundle,uboot_sha256=want_uboot,manifest_signature_verified=True,offer_from_rc1_verified=True,no_reinstall_on_rc2_verified=True)),flush=True)
+          PYPUBLISH
   build:
-    if: inputs.diagnose_runner != true
+    if: inputs.diagnose_runner != true && inputs.publish_dvt_rc2_dev != true
     name: Build and publish ${{ matrix.board }} images
     strategy:
       fail-fast: false
