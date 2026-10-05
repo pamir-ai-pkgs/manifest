@@ -208,10 +208,9 @@ jobs:
            assert parsed['version']=='v'+version and parsed['compatible']=='pamir-lapis-rk3576-dev',parsed
            env=dict(os.environ,AWS_REGION='us-west-2',AWS_DEFAULT_REGION='us-west-2')
            env.pop('AWS_PROFILE',None)
-           creds=json.loads(subprocess.check_output(['aws','sts','assume-role','--role-arn','arn:aws:iam::322551983552:role/lapis-ota-publish-ci','--role-session-name','rc2-dvt-dev-publish','--output','json'],env=env))['Credentials']
-           env.update(AWS_ACCESS_KEY_ID=creds['AccessKeyId'],AWS_SECRET_ACCESS_KEY=creds['SecretAccessKey'],AWS_SESSION_TOKEN=creds['SessionToken'])
            identity=json.loads(subprocess.check_output(['aws','sts','get-caller-identity','--output','json'],env=env))
            assert identity['Account']=='322551983552'
+          assert identity['Arn'].startswith('arn:aws:sts::322551983552:assumed-role/lapis-ota-build/'),identity['Arn']
            print('Publishing identity:',identity['Arn'],flush=True)
            tokens=subprocess.check_output(['aws','secretsmanager','get-secret-value','--secret-id','lapis-ota/fleet-tokens','--query','SecretString','--output','text'],env=env,text=True)
            token=next(x.strip() for x in reversed(tokens.splitlines()) if x.strip())
