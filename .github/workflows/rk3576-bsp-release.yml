@@ -115,6 +115,7 @@ jobs:
         if: inputs.verify_artifacts == true
         shell: bash
         run: |
+          export PATH="$PATH:/usr/sbin:/sbin"
           python3 - <<'PYVERIFY'
           from pathlib import Path
           import hashlib,io,json,subprocess,tarfile,tempfile
