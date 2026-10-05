@@ -197,7 +197,16 @@ jobs:
           test "$(git -C "$source" rev-parse HEAD)" = "$revision"
           build_dir=$(mktemp -d "$RUNNER_TEMP/ota-publisher.XXXXXX")
           git -C "$source" archive "$revision" ota-publish | tar -x -C "$build_dir"
+          # This exact module commit still exists but is no longer discoverable
+          # through advertised refs. Fetch its full SHA without changing the pin.
+          server_revision=223b3547554c3701f4705a27eb6bf74f034d19b0
+          git init "$build_dir/ota-server"
+          git -C "$build_dir/ota-server" remote add origin https://github.com/Pamir-AI/lapis-ota-server.git
+          git -C "$build_dir/ota-server" fetch --depth=1 origin "$server_revision"
+          git -C "$build_dir/ota-server" checkout --detach FETCH_HEAD
+          test "$(git -C "$build_dir/ota-server" rev-parse HEAD)" = "$server_revision"
           cd "$build_dir/ota-publish"
+          go mod edit -replace "github.com/Pamir-AI/lapis-ota-server=$build_dir/ota-server"
           go vet ./...
           go test ./...
           go build -trimpath -o "$build_dir/ota-publish-cli" .
