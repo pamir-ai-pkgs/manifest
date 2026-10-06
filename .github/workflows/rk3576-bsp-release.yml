@@ -509,6 +509,14 @@ jobs:
           ASSET_NAME_SUFFIX="$DEV_ASSET_SUFFIX" \
           RELEASE_NOTES_MODE="$DEV_NOTES_MODE" \
             bsp-tools/ci/publish-github-release.sh
+          # The BSP helper omits manifest.xml for board-suffixed assets. DVT
+          # is now the first and only board, so attach its realized manifest.
+          case "$CHANNEL" in
+            stable|candidate|nightly)
+              gh release upload "$VERSION" --repo "$GITHUB_RELEASE_REPOSITORY" \
+                "output/releases/ci/$BUILD_ID/manifest.xml" --clobber
+              ;;
+          esac
 
       # Only publish OTA for final release tags. Nightlies are not published
       # to any OTA channel: their bundles are on S3 and attached to the

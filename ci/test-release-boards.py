@@ -36,6 +36,34 @@ class BoardReleaseTests(unittest.TestCase):
         self.assertFalse(job['strategy']['fail-fast'])
         self.assertEqual(job['strategy']['matrix']['board'], ['dvt'])
 
+    def test_dvt_first_leg_attaches_realized_manifest(self):
+        job = yaml.safe_load(WORKFLOW.read_text())['jobs']['build']
+        body = next(s['run'] for s in job['steps'] if s.get('name') == 'Publish GitHub release')
+        for channel in ['stable', 'candidate', 'dev']:
+            with tempfile.TemporaryDirectory() as d:
+                root = Path(d)
+                helper = root / 'bsp-tools/ci/publish-github-release.sh'
+                helper.parent.mkdir(parents=True)
+                helper.write_text('#!/bin/sh\nexit 0\n')
+                helper.chmod(0o755)
+                manifest = root / 'output/releases/ci/123-1/manifest.xml'
+                manifest.parent.mkdir(parents=True)
+                manifest.write_text('<manifest/>')
+                stub = root / 'gh'
+                stub.write_text('#!/bin/sh\nfor arg do\n case "$arg" in\n */manifest.xml) cp "$arg" "$RECEIPT";;\n esac\ndone\n')
+                stub.chmod(0o755)
+                receipt = root / 'uploaded-manifest.xml'
+                env = dict(os.environ, SDK_DIR=d, DEV_ASSET_SUFFIX='-dvt',
+                           DEV_NOTES_MODE='replace', VERSION='rk3576-v0.2.0-rc.3',
+                           BUILD_ID='123-1', CHANNEL=channel,
+                           GITHUB_RELEASE_REPOSITORY='pamir-ai-pkgs/manifest',
+                           RECEIPT=str(receipt), PATH=d + os.pathsep + os.environ['PATH'])
+                subprocess.run(['bash', '-e', '-c', body], env=env, check=True)
+                if channel == 'dev':
+                    self.assertFalse(receipt.exists())
+                else:
+                    self.assertEqual(receipt.read_bytes(), manifest.read_bytes())
+
     def test_candidate_board_paths_and_configurations_are_distinct(self):
         job = yaml.safe_load(WORKFLOW.read_text())['jobs']['build']
         body = next(s['run'] for s in job['steps'] if s.get('name') == 'Resolve build parameters')
