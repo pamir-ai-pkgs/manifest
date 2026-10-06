@@ -40,7 +40,7 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        board: [evt3, dvt]
+        board: [dvt]
     runs-on:
       - self-hosted
       - linux
@@ -67,7 +67,6 @@ jobs:
       MANIFEST_URL: https://github.com/pamir-ai-pkgs/manifest
       MIN_FREE_GIB: "50"
       OTA_PUBLISH_REGION: us-west-2
-      OTA_PUBLISH_ROLE_ARN: arn:aws:iam::322551983552:role/lapis-ota-publish-ci
       PRE_COMMIT_HOME: /srv/bsp/pre-commit-cache
       REPO_MIRROR: /srv/bsp/repo-mirror
       S3_BUCKET: lapis-os-artifacts
@@ -248,7 +247,7 @@ jobs:
             sec_asset_suffix="-dvt-secure"
             dev_image_label="DVT-Dev"
             sec_image_label="DVT-Secure"
-            dev_notes_mode="append"
+            dev_notes_mode="replace"
             dev_pointer_name="dvt-latest.json"
             dev_stable_pointer_name="dvt-dev-latest.json"
             sec_pointer_name="dvt-sec-latest.json"
@@ -514,12 +513,28 @@ jobs:
       # Only publish OTA for final release tags. Nightlies are not published
       # to any OTA channel: their bundles are on S3 and attached to the
       # GitHub prerelease.
+      - name: Set up OTA publisher toolchain
+        if: env.CHANNEL == 'stable'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: false
+
       - name: Publish dev OTA release
-        if: env.CHANNEL == 'stable' && env.BOARD_VARIANT == 'evt3'
+        if: env.CHANNEL == 'stable'
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          GOPRIVATE: github.com/Pamir-AI/*,github.com/pamir-ai-pkgs/*
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: credential.helper
+          GIT_CONFIG_VALUE_0: ''
+          GIT_CONFIG_KEY_1: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_1: '!gh auth git-credential'
         run: |
-          # Dev images poll lapis/dev.
-          manifest-checkout/ci/ota-publish-release.sh "$SDK_DIR" dev
+          export PATH="$PATH:/usr/sbin:/sbin"
+          python3 manifest-checkout/ci/ota-publish.py \
+            --tag "$VERSION" --build-id "$BUILD_ID" --channel dev
 
       # Secure leg for the selected board: tagged builds ship the signed secure image, built
       # serially after the dev leg so its failure cannot block that release.
@@ -620,11 +635,20 @@ jobs:
             bsp-tools/ci/publish-github-release.sh
 
       - name: Publish secure OTA release
-        if: env.CHANNEL == 'stable' && env.BOARD_VARIANT == 'evt3'
+        if: env.CHANNEL == 'stable'
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          GOPRIVATE: github.com/Pamir-AI/*,github.com/pamir-ai-pkgs/*
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: credential.helper
+          GIT_CONFIG_VALUE_0: ''
+          GIT_CONFIG_KEY_1: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_1: '!gh auth git-credential'
         run: |
-          # Secure images poll lapis/sit.
-          manifest-checkout/ci/ota-publish-release.sh "$SEC_SDK_DIR" sit
+          export PATH="$PATH:/usr/sbin:/sbin"
+          python3 manifest-checkout/ci/ota-publish.py \
+            --tag "$VERSION" --build-id "$BUILD_ID" --channel sit
 
       - name: Remove ephemeral GitHub token rewrite
         if: always()

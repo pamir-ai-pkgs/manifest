@@ -30,11 +30,11 @@ class BoardReleaseTests(unittest.TestCase):
                                       'ssh://git@github.com/pamir-ai-pkgs/',
                                       'git@github.com:pamir-ai-pkgs/'])
 
-    def test_both_boards_have_serial_independent_builds(self):
+    def test_only_dvt_is_scheduled(self):
         job = yaml.safe_load(WORKFLOW.read_text())['jobs']['build']
         self.assertEqual(job['strategy']['max-parallel'], 1)
         self.assertFalse(job['strategy']['fail-fast'])
-        self.assertEqual(job['strategy']['matrix']['board'], ['evt3', 'dvt'])
+        self.assertEqual(job['strategy']['matrix']['board'], ['dvt'])
 
     def test_candidate_board_paths_and_configurations_are_distinct(self):
         job = yaml.safe_load(WORKFLOW.read_text())['jobs']['build']

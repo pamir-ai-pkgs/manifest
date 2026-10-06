@@ -1,0 +1,60 @@
+name: Publish existing DVT OTA
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing manifest tag (rk3576-vX.Y.Z or rk3576-vX.Y.Z-rc.N)
+        required: true
+        type: string
+      build_id:
+        description: Original Actions run ID and attempt (RUN_ID-ATTEMPT)
+        required: true
+        type: string
+      channel:
+        description: dev uses DVT dev; sit uses DVT production (final versions only)
+        required: true
+        type: choice
+        options: [dev, sit]
+      verify_only:
+        description: Verify artifacts, signatures and publisher without registering an OTA
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# Shares the build lock so automatic and manual publication cannot overlap.
+concurrency:
+  group: rk3576-bsp-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: [self-hosted, linux, x64, rk3576, bsp]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: false
+      - name: Verify or publish the selected release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          BUILD_ID: ${{ inputs.build_id }}
+          OTA_CHANNEL: ${{ inputs.channel }}
+          VERIFY_ONLY: ${{ inputs.verify_only }}
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          GOPRIVATE: github.com/Pamir-AI/*,github.com/pamir-ai-pkgs/*
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: credential.helper
+          GIT_CONFIG_VALUE_0: ''
+          GIT_CONFIG_KEY_1: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_1: '!gh auth git-credential'
+        run: |
+          export PATH="$PATH:/usr/sbin:/sbin"
+          args=(--tag "$RELEASE_TAG" --build-id "$BUILD_ID" --channel "$OTA_CHANNEL")
+          if [[ "$VERIFY_ONLY" == true ]]; then args+=(--verify-only); fi
+          python3 ci/ota-publish.py "${args[@]}"
