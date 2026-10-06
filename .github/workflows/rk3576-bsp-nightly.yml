@@ -11,10 +11,7 @@ name: RK3576 BSP Nightly
 # published to an OTA channel).
 
 on:
-  schedule:
-    # 04:42 UTC = 21:42 PDT
-    # The nightly date is the UTC date of the run.
-    - cron: "42 4 * * *"
+  # Scheduled nightlies are paused. Manual tooling is retained for historical use.
   workflow_dispatch:
     inputs:
       date:

@@ -179,53 +179,67 @@ The workflow reads private BSP repositories through the repository secret
 `pamir-ai-pkgs` BSP repositories. The EC2 runner's IAM role provides S3 access;
 do not add AWS keys to GitHub secrets.
 
-- Push to manifest `main`: build a dev image and upload to
-  `s3://distiller-os-release-artifacts/pamir-rk3576/dev/main/<build-id>/`.
-- Tag manifest as `rk3576-vX.Y.Z-rc.N`: build a pinned candidate image with
-  its signed RAUC bundle (`lapis-dev-vX.Y.Z-rc.N.raucb`), upload to
-  `s3://distiller-os-release-artifacts/pamir-rk3576/candidates/rk3576-vX.Y.Z-rc.N/<build-id>/`,
-  and publish a GitHub prerelease on the manifest repository. The same run
-  then builds the secure EVT3 image serially, uploading it with
-  `lapis-sec-vX.Y.Z-rc.N.raucb` to
-  `s3://distiller-os-release-artifacts/pamir-rk3576/candidates/rk3576-vX.Y.Z-rc.N-sec/<build-id>/`
-  and moving `channels/candidate/sec-latest.json` (the dev leg moves
-  `channels/candidate/latest.json`).
-- Tag manifest as `rk3576-vX.Y.Z`: build a pinned stable image with its
-  signed RAUC bundle (`lapis-dev-vX.Y.Z.raucb`), upload to
-  `s3://distiller-os-release-artifacts/pamir-rk3576/releases/rk3576-vX.Y.Z/`,
-  and publish a GitHub release on the manifest repository. The same run then
-  builds the secure EVT3 image (`rockchip_rk3576_lapis_evt3_secure_defconfig`)
-  serially from the same tag in its own workspace, uploads it with its signed
-  RAUC bundle (`lapis-sec-vX.Y.Z.raucb`) to
-  `s3://distiller-os-release-artifacts/pamir-rk3576/releases/rk3576-vX.Y.Z-sec/`,
-  and moves only the `releases/sec-latest.json` pointer; the dev-facing
-  release moves `releases/dev-latest.json`. Stable manual dispatches run the
-  secure leg as well. RAUC bundles are staged only for tagged builds, where
-  the bundle version matches the image's baked `IMAGE_VERSION`; untagged
-  dev/scratch builds stage none.
-- Tag manifest as `rk3576-vX.Y.Z-nightly.N` (the nightly stager does this,
-  see below): build the dev image on the `nightly` channel with its signed
-  RAUC bundle (`lapis-dev-vX.Y.Z-nightly.N.raucb`) baking
-  `IMAGE_VERSION=vX.Y.Z-nightly.N`, upload to
-  `s3://distiller-os-release-artifacts/pamir-rk3576/nightly/rk3576-vX.Y.Z-nightly.N/<build-id>/`,
-  and publish a GitHub prerelease on the manifest repository, as for
-  candidates. The same run then builds
-  the secure leg serially, uploads it under
-  `.../nightly/rk3576-vX.Y.Z-nightly.N-sec/<build-id>/`, moves
-  `channels/nightly/sec-latest.json`, and attaches its artifacts to the
-  prerelease. Neither leg is published to an OTA channel.
-- Manual dispatch: build `scratch`, `dev`, `candidate`, `stable`, or
-  `nightly` from a selected manifest ref. Candidate, stable, and nightly
-  dispatches must build the same existing manifest tag they publish.
-- Candidate and stable builds reject manifests that still use floating branch
-  revisions for projects. Pin release manifests to component tags or exact SHAs.
+- Pushes to `main` do **not** build images. Component revisions in
+  `rk3576-debian-ab.xml` are explicit pins; merging a component does not move them.
+  Release candidate pins may remain on their release branch/tag without promotion to main.
+- New builds target **DVT only**. Candidate and stable tags produce two images and
+  signed RAUC bundles, serially: development and production (the existing `secure`
+  configuration). EVT3 artifacts and historical tags remain available.
+- Tag `rk3576-vX.Y.Z-rc.N`: build the pinned candidate and attach its artifacts to
+  a GitHub prerelease. DVT development lives under
+  `s3://lapis-os-artifacts/pamir-rk3576/candidates/<tag>-dvt/<run-id>-<attempt>/`;
+  production lives under `<tag>-dvt-sec/<run-id>-<attempt>/` in the same directory.
+  No automatic OTA publication occurs for an RC.
+- Tag `rk3576-vX.Y.Z`: build a pinned final release. Development artifacts live
+  under `s3://lapis-os-artifacts/pamir-rk3576/releases/<tag>-dvt/`, production
+  under `<tag>-dvt-sec/`. Existing stable publication policy is retained:
+  development publishes to `lapis/dev`, production to `lapis/sit`, never `prod`.
+- Manual image dispatch still supports `scratch`, `dev`, `candidate`, `stable`
+  and historical `nightly` tags. Untagged scratch/dev runs build only a DVT dev
+  image, without a RAUC bundle. Tagged runs build both postures and preserve
+  the exact image version, including `-rc.N`.
+- Candidate and stable builds require commit/tag-pinned component sources.
+  The published manifest tag is immutable. An orchestration repair may execute
+  from another branch while building that same pinned tag.
+- DVT pointers use `dvt-latest.json`, `dvt-dev-latest.json` and
+  `dvt-sec-latest.json`; GitHub checksum assets use `SHA256SUMS-dvt` and
+  `SHA256SUMS-dvt-secure`. The first DVT leg creates the release notes; the
+  production leg appends its rows.
+
+### Publish an existing DVT OTA
+
+Use **Actions → Publish existing DVT OTA**; this does not rebuild an image.
+Select the release tag, original build ID (`RUN_ID-ATTEMPT`) and channel:
+`dev` selects the DVT development bundle; `sit` selects production and accepts
+final versions only. Verification-only is enabled by default; clear it to
+publish after verification. RC versions retain their full `-rc.N` suffix.
+
+The job downloads the release manifest/checksums and the matching bundle and
+U-Boot from the artifact bucket. It checks source pins against the tag, hashes,
+the RAUC signature against the pinned image CA, version and compatibility ID.
+It builds/tests the publisher from the pinned BSP tools revision, using that
+publisher's exact server-schema dependency. The native `lapis-ota-build` runner
+role in account `322551983552`, `us-west-2`, supplies AWS access; no laptop SSO,
+stored AWS key or cross-account assume-role is needed. The GitHub token also
+needs read access to `Pamir-AI/lapis-ota-server` for that dependency.
+
+After publishing, it verifies the signed live offer's bundle/U-Boot hashes and
+that the installed version is not offered again. An already-live matching
+release is a no-op; mismatched or newer offers stop publication. S3 objects and
+DynamoDB release records remain immutable. A partially uploaded release that
+has not been registered requires inspection before retrying; the publisher
+will not silently overwrite its objects.
+
+DVT still uses the shared `lapis` OTA identity: any remaining EVT3 devices on
+the selected channel would receive the DVT offer. Retiring EVT3 builds does
+not add device-side filtering. This workflow does not publish to `prod`.
 
 ### Nightly builds
 
-`rk3576-bsp-nightly.yml` runs every day at 09:00 UTC (02:00 US Pacific) and
-on manual dispatch. It builds one image from whatever is ready across the BSP
-so integration problems surface the morning after the code lands, not the
-week of a release.
+**Paused:** the nightly workflow is disabled in GitHub and its cron trigger
+has been removed. No rc.3 branch selection or new nightly infrastructure is
+being introduced. The manual stager and historical tooling below are retained
+for reference; they are not the current release process.
 
 1. **Select.** In the manifest repository and in every component repository
    the manifest names, every open pull request that carries the `nightly`
@@ -313,7 +327,7 @@ for mkosi, `UV_CACHE_DIR=/srv/bsp/uv-cache`, and
 Only channel pointers are mutable:
 
 ```text
-s3://distiller-os-release-artifacts/pamir-rk3576/channels/<channel>/latest.json
+s3://lapis-os-artifacts/pamir-rk3576/channels/<channel>/latest.json
 ```
 
 All build and release prefixes are immutable.
