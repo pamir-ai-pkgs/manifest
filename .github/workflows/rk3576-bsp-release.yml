@@ -60,9 +60,9 @@ jobs:
       # "Configure GitHub authentication".
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
       BOARD_VARIANT: ${{ matrix.board }}
-      # Defaults retain the EVT3 contract; the resolver selects each matrix board.
-      DEFCONFIG: rockchip_rk3576_lapis_evt3_defconfig
-      SECURE_DEFCONFIG: rockchip_rk3576_lapis_evt3_secure_defconfig
+      # New builds target DVT; the resolver also understands historical EVT3 inputs.
+      DEFCONFIG: rockchip_rk3576_lapis_dvt_defconfig
+      SECURE_DEFCONFIG: rockchip_rk3576_lapis_dvt_secure_defconfig
       MANIFEST_FILE: rk3576-debian-ab.xml
       MANIFEST_URL: https://github.com/pamir-ai-pkgs/manifest
       MIN_FREE_GIB: "50"

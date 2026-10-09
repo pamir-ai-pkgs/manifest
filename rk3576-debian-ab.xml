@@ -23,7 +23,7 @@
   <project name="linux-rockchip-tools" path="tools" revision="5a4433d9bd3533c80a9426ecb20ed02a9d0b807d"/>
   <project name="linux-rockchip-docs" path="docs" revision="a8b8fc36f13b266d247601e80d8366821bbb93b6"/>
   <project name="linux-rockchip-mkosi" path="mkosi" revision="fe833587ae172fc497fbd866348db77649dd2c1b"/>
-  <project name="linux-rockchip-bsp-tools" path="bsp-tools" revision="b68be34868fcab14a94bbcc24ca9092953a991ed">
+  <project name="linux-rockchip-bsp-tools" path="bsp-tools" revision="ce8b7583c9562cb30c1f9525e4e2c58bc3535f31">
     <linkfile src="release/CHANGELOG.md" dest="CHANGELOG.md"/>
     <linkfile src="release/README.md" dest="RELEASE.md"/>
   </project>
