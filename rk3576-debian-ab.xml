@@ -9,7 +9,7 @@
     <linkfile src="common/scripts/rkflash.sh" dest="rkflash.sh"/>
   </project>
   <project name="linux-rockchip-u-boot" path="u-boot" revision="78a94c6d75862476950812a4d9d2e67fbdeee4d5"/>
-  <project name="linux-rockchip-kernel" path="kernel-6.1" revision="1a3c3b66d7e1356ac23cd44e2032baea299f95b3">
+  <project name="linux-rockchip-kernel" path="kernel-6.1" revision="145e7e2de388552dd5680fad1e92a397fc03fb25">
     <linkfile src="." dest="kernel"/>
   </project>
   <project name="linux-rockchip-recovery" path="external/recovery" revision="30d5db6f6d44a42842012b6685a94cdf3495efb9"/>
