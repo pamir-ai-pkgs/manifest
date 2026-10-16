@@ -192,8 +192,10 @@ do not add AWS keys to GitHub secrets.
   No automatic OTA publication occurs for an RC.
 - Tag `rk3576-vX.Y.Z`: build a pinned final release. Development artifacts live
   under `s3://lapis-os-artifacts/pamir-rk3576/releases/<tag>-dvt/`, production
-  under `<tag>-dvt-sec/`. Existing stable publication policy is retained:
-  development publishes to `lapis/dev`, production to `lapis/sit`, never `prod`.
+  under `<tag>-dvt-sec/`. Tag builds do not publish OS OTA offers. After validation,
+  use **Publish existing DVT OTA**, or explicitly enable `publish_ota` on a stable
+  manual build: development publishes to `lapis/dev`, production to `lapis/sit`,
+  never `prod`.
 - Manual image dispatch still supports `scratch`, `dev`, `candidate`, `stable`
   and historical `nightly` tags. Untagged scratch/dev runs build only a DVT dev
   image, without a RAUC bundle. Tagged runs build both postures and preserve

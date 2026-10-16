@@ -13,7 +13,7 @@
     <linkfile src="." dest="kernel"/>
   </project>
   <project name="linux-rockchip-recovery" path="external/recovery" revision="70f1792b376475b7180d4782158f679bbc3fece2"/>
-  <project name="lapis" path="external/lapis" revision="865c014930fd2aedb1fd7b91ccfe223ac9e641c0"/>
+  <project name="lapis" path="external/lapis" revision="aedc16cb60738eed39dbb9d326dd5d39724948e6"/>
   <project name="lapis-telemetryd" path="external/lapis-telemetryd" revision="cd1010338e2a7e24f899ea6a8182215042b99ec1"/>
   <project name="lapis-ota" path="external/lapis-ota" revision="17c5c271dbd0a3ff49443e746e729440200d5710"/>
   <project name="lapis-hwserviced" path="external/lapis-hwserviced" revision="79de497fef9d1951701f0eeeda67b1ffae175105"/>
@@ -22,7 +22,7 @@
   <project name="linux-rockchip-rkbin" path="rkbin" revision="9c3da090504a523016552a67fdf7993a2538b5d0"/>
   <project name="linux-rockchip-tools" path="tools" revision="5a4433d9bd3533c80a9426ecb20ed02a9d0b807d"/>
   <project name="linux-rockchip-docs" path="docs" revision="342bf3dd6344f71cdb90b284e26c2c3a2aa1b661"/>
-  <project name="linux-rockchip-mkosi" path="mkosi" revision="c8f00d7c12e668d93ecb2117d1ebc9bf39878a21"/>
+  <project name="linux-rockchip-mkosi" path="mkosi" revision="a8f7bd6467606141f58f47e04ef2ec91f33645d0"/>
   <project name="linux-rockchip-bsp-tools" path="bsp-tools" revision="1c8b65545e867eecfb3da317a673e37c8198ff53">
     <linkfile src="release/CHANGELOG.md" dest="CHANGELOG.md"/>
     <linkfile src="release/README.md" dest="RELEASE.md"/>

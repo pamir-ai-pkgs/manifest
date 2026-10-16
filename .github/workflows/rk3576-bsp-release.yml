@@ -25,6 +25,11 @@ on:
         description: Release tag. Candidate/stable/nightly dispatch must build the matching rk3576-v* tag.
         required: false
         default: ""
+      publish_ota:
+        description: "Also publish final-version bundles to dev and SIT OTA channels"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -265,12 +270,10 @@ jobs:
             esac
           fi
 
-          # Prerelease channels bake their prerelease suffix
-          # (v0.1.0-rc.2, v0.2.0-nightly.N) so a device reports exactly
-          # which build it runs and current_version_full stays truthful
-          # end to end.
+          # Every tagged release bakes its exact version, including any
+          # prerelease suffix, so the rootfs and signed bundle agree.
           rk_image_version=""
-          if [[ "$channel" == "candidate" || "$channel" == "nightly" ]]; then
+          if [[ "$channel" == "stable" || "$channel" == "candidate" || "$channel" == "nightly" ]]; then
             rk_image_version="${version#rk3576-}"
           fi
 
@@ -518,18 +521,18 @@ jobs:
               ;;
           esac
 
-      # Only publish OTA for final release tags. Nightlies are not published
-      # to any OTA channel: their bundles are on S3 and attached to the
-      # GitHub prerelease.
+      # Building a release never offers an OS update by default. OTA publication
+      # requires an explicit stable manual dispatch opt-in; existing artifacts
+      # can also be published later through the separate OTA workflow.
       - name: Set up OTA publisher toolchain
-        if: env.CHANNEL == 'stable'
+        if: env.CHANNEL == 'stable' && github.event_name == 'workflow_dispatch' && inputs.publish_ota
         uses: actions/setup-go@v5
         with:
           go-version: '1.24.x'
           cache: false
 
       - name: Publish dev OTA release
-        if: env.CHANNEL == 'stable'
+        if: env.CHANNEL == 'stable' && github.event_name == 'workflow_dispatch' && inputs.publish_ota
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
@@ -643,7 +646,7 @@ jobs:
             bsp-tools/ci/publish-github-release.sh
 
       - name: Publish secure OTA release
-        if: env.CHANNEL == 'stable'
+        if: env.CHANNEL == 'stable' && github.event_name == 'workflow_dispatch' && inputs.publish_ota
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
