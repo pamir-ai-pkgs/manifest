@@ -2,12 +2,16 @@ name: Recover final DVT dev OTA
 on:
   workflow_dispatch:
     inputs:
+      publish_release:
+        description: Publish the existing dev image downloads and release changelog
+        type: boolean
+        default: false
       publish:
         description: Publish the verified retained final DVT bundle to dev
         type: boolean
         default: false
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: rk3576-bsp-release
   cancel-in-progress: false
@@ -39,6 +43,12 @@ jobs:
         run: |
           export PATH="$PATH:/usr/sbin:/sbin"
           python3 recovery/v020/publish.py
+      - name: Recover development downloads and publish the release changelog
+        if: inputs.publish_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_DOWNLOAD_TOKEN: ${{ secrets.PAMIR_ARTIFACT_DOWNLOAD_TOKEN }}
+        run: python3 recovery/v020/release.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -46,4 +56,5 @@ jobs:
           path: |
             ${{ runner.temp }}/v020-recovery-${{ github.run_id }}/
             ${{ runner.temp }}/v020-publish-${{ github.run_id }}/publication-verification.json
+            ${{ runner.temp }}/v020-release-${{ github.run_id }}/release-verification.json
           if-no-files-found: error
