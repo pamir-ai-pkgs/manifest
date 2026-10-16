@@ -1,0 +1,507 @@
+{
+  "checked_at": "2026-10-16T03:16:28.345809+00:00",
+  "pool_tag": "pool-v0.2.0-rc.3-20261009",
+  "pool_sha256": "5ea84800fb7afded7b679c60a0faa3f62081e01ee735b6515594bcb5fd8be7c9",
+  "unique_pool_deb_count": 35,
+  "file_count": 36,
+  "missing": [],
+  "extra": [],
+  "hash_mismatch": [],
+  "installed_version_mismatch": [],
+  "packages": [
+    {
+      "deb": "android-adbd_10.0.0+r36-10~pamir1_arm64.deb",
+      "paths": [
+        "rockchip/android-adbd_10.0.0+r36-10~pamir1_arm64.deb"
+      ],
+      "sha256": [
+        "2d9fdddd6422659a98780c21982cbc534b1407c188699497e8742a6ca5b39dfb"
+      ],
+      "matches_release": true,
+      "package": "android-adbd",
+      "pool_version": "10.0.0+r36-10~pamir1",
+      "installed_version": "10.0.0+r36-10~pamir1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "chromium-common_154.0.8037.92-1~deb13u1_arm64.deb",
+      "paths": [
+        "rockchip/chromium-common_154.0.8037.92-1~deb13u1_arm64.deb"
+      ],
+      "sha256": [
+        "41b8346a4a7de14709ff849ee2c60ce7a835470b609943728a3786c284700657"
+      ],
+      "matches_release": true,
+      "package": "chromium-common",
+      "pool_version": "154.0.8037.92-1~deb13u1",
+      "installed_version": "154.0.8037.92-1~deb13u1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "chromium-driver_154.0.8037.92-1~deb13u1_arm64.deb",
+      "paths": [
+        "rockchip/chromium-driver_154.0.8037.92-1~deb13u1_arm64.deb"
+      ],
+      "sha256": [
+        "75bb4b34965f4a7883b3cb1f4ef9cac5954b8d65e59d7abdd1e908f7fbe0a5e6"
+      ],
+      "matches_release": true,
+      "package": "chromium-driver",
+      "pool_version": "154.0.8037.92-1~deb13u1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "chromium-sandbox_154.0.8037.92-1~deb13u1_arm64.deb",
+      "paths": [
+        "rockchip/chromium-sandbox_154.0.8037.92-1~deb13u1_arm64.deb"
+      ],
+      "sha256": [
+        "95148acd6d6036825fb6bb16a643639e7ab647261456d3e6b364103f4a0135e0"
+      ],
+      "matches_release": true,
+      "package": "chromium-sandbox",
+      "pool_version": "154.0.8037.92-1~deb13u1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "chromium_154.0.8037.92-1~deb13u1_arm64.deb",
+      "paths": [
+        "rockchip/chromium_154.0.8037.92-1~deb13u1_arm64.deb"
+      ],
+      "sha256": [
+        "e5c1c07af4d0bf331cb878aae53b3b1031588f7e5cf8f82329f5b6e4e7d0d5bf"
+      ],
+      "matches_release": true,
+      "package": "chromium",
+      "pool_version": "154.0.8037.92-1~deb13u1",
+      "installed_version": "154.0.8037.92-1~deb13u1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "ffmpeg_7.1.5+rkmpp-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/ffmpeg_7.1.5+rkmpp-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "57eba58ab59b227f0ba0f12e9fa1e22c29d9308386cfd20dcce1f58ddfe61dbc"
+      ],
+      "matches_release": true,
+      "package": "ffmpeg",
+      "pool_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "gstreamer1.0-lapis-webrtc_0.14.5-1_arm64.deb",
+      "paths": [
+        "rockchip/gstreamer1.0-lapis-webrtc_0.14.5-1_arm64.deb"
+      ],
+      "sha256": [
+        "ebfa9ccd3791e969db4ad47b2b75a2bbf5cab8ed3dc4dc3669cc1127cf3b82a7"
+      ],
+      "matches_release": true,
+      "package": "gstreamer1.0-lapis-webrtc",
+      "pool_version": "0.14.5-1",
+      "installed_version": "0.14.5-1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "gstreamer1.0-rga_0.1.0-1_arm64.deb",
+      "paths": [
+        "rockchip/gstreamer1.0-rga_0.1.0-1_arm64.deb"
+      ],
+      "sha256": [
+        "4360fac7c1f056dfb44ece85f844fdad6dbf15dd892d235f8883cd760489ae3d"
+      ],
+      "matches_release": true,
+      "package": "gstreamer1.0-rga",
+      "pool_version": "0.1.0-1",
+      "installed_version": "0.1.0-1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "gstreamer1.0-rockchip1_1.14.4-1_arm64.deb",
+      "paths": [
+        "rockchip/gstreamer1.0-rockchip1_1.14.4-1_arm64.deb"
+      ],
+      "sha256": [
+        "b4b7728a3d64223159620c0fa28440fb225b774eeb416938b454be242dc4b631"
+      ],
+      "matches_release": true,
+      "package": "gstreamer1.0-rockchip1",
+      "pool_version": "1.14.4-1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "libavcodec61_7.1.5+rkmpp-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/libavcodec61_7.1.5+rkmpp-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "f160068635939ae5213fb7ffa7fa9b835868ad7a5e5610bb65493bfb3aeb81d7"
+      ],
+      "matches_release": true,
+      "package": "libavcodec61",
+      "pool_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "libavdevice61_7.1.5+rkmpp-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/libavdevice61_7.1.5+rkmpp-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "06423966c95386cc866a9f7200b1377fb84260ca87c58786cc074a3b505362ff"
+      ],
+      "matches_release": true,
+      "package": "libavdevice61",
+      "pool_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "libavfilter10_7.1.5+rkmpp-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/libavfilter10_7.1.5+rkmpp-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "8cd20f22a64ec599e6822b8317f1bd7e9b37b35490c969e2b4e84d0f7f5b7ee2"
+      ],
+      "matches_release": true,
+      "package": "libavfilter10",
+      "pool_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "libavformat61_7.1.5+rkmpp-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/libavformat61_7.1.5+rkmpp-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "2422e45047437e8cc5868f06d3808f888fcc415b75c1b98e8e98eae59e898d4b"
+      ],
+      "matches_release": true,
+      "package": "libavformat61",
+      "pool_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "libavutil59_7.1.5+rkmpp-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/libavutil59_7.1.5+rkmpp-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "8f3694cc02549ee5585f438cf8918d301fe046983e5ddc2d1a266e318b95dff7"
+      ],
+      "matches_release": true,
+      "package": "libavutil59",
+      "pool_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "libdrm-cursor-dev_1.4.1-1_arm64.deb",
+      "paths": [
+        "rockchip/libdrm-cursor-dev_1.4.1-1_arm64.deb"
+      ],
+      "sha256": [
+        "a459857be7d0d293663d40583e15e4a33c6114b90b4673b18d003ac801f2b0fd"
+      ],
+      "matches_release": true,
+      "package": "libdrm-cursor-dev",
+      "pool_version": "1.4.1-1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "libdrm-cursor_1.4.1-1_arm64.deb",
+      "paths": [
+        "rockchip/libdrm-cursor_1.4.1-1_arm64.deb"
+      ],
+      "sha256": [
+        "c6458154b590c0d45d2d30a95fe4d73da053cf18571dd7e43ca063c5af4c0a3e"
+      ],
+      "matches_release": true,
+      "package": "libdrm-cursor",
+      "pool_version": "1.4.1-1",
+      "installed_version": "1.4.1-1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "libmali-bifrost-g52_1.9-1_arm64.deb",
+      "paths": [
+        "rockchip/libmali-bifrost-g52_1.9-1_arm64.deb"
+      ],
+      "sha256": [
+        "33e869895d7e298f163736d44ca49b16d03cae902a6cf4a0c3a2a482f8540f4d"
+      ],
+      "matches_release": true,
+      "package": "libmali-bifrost-g52",
+      "pool_version": "1.9-1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "libpostproc58_7.1.5+rkmpp-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/libpostproc58_7.1.5+rkmpp-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "839326fba4d7ac7bd7e01283ceb6c7fa508768370990e555ba2904b949a19d0a"
+      ],
+      "matches_release": true,
+      "package": "libpostproc58",
+      "pool_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "librga-dev_2.2.0-1_arm64.deb",
+      "paths": [
+        "rockchip/librga-dev_2.2.0-1_arm64.deb"
+      ],
+      "sha256": [
+        "87580b6e9330989144d8d5406988a8d671ca88e5faddf99c1c552634f480e5b0"
+      ],
+      "matches_release": true,
+      "package": "librga-dev",
+      "pool_version": "2.2.0-1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "librga2_2.2.0-1_arm64.deb",
+      "paths": [
+        "rockchip/librga2_2.2.0-1_arm64.deb"
+      ],
+      "sha256": [
+        "13f65144471d40125b8941badd13aff804987349de6e9d14c0297a64e4a136ea"
+      ],
+      "matches_release": true,
+      "package": "librga2",
+      "pool_version": "2.2.0-1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "librknn2-dev_2.3.2-1_arm64.deb",
+      "paths": [
+        "rockchip/librknn2-dev_2.3.2-1_arm64.deb"
+      ],
+      "sha256": [
+        "d10fbbb89496816f2f4b774579628312e84ece55d5498b2927e4d71dc00950bc"
+      ],
+      "matches_release": true,
+      "package": "librknn2-dev",
+      "pool_version": "2.3.2-1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "librknn2_2.3.2-1_arm64.deb",
+      "paths": [
+        "rockchip/librknn2_2.3.2-1_arm64.deb"
+      ],
+      "sha256": [
+        "d0748e8d24e06ac840daae767b6e387ab50995c3755ced57b0441bf2e4312e20"
+      ],
+      "matches_release": true,
+      "package": "librknn2",
+      "pool_version": "2.3.2-1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "librockchip-mpp-dev_1.0.11-1_arm64.deb",
+      "paths": [
+        "rockchip/librockchip-mpp-dev_1.0.11-1_arm64.deb"
+      ],
+      "sha256": [
+        "4eb57beb3ca12414816ec7cd8700357a2fa76e46e7df8e50f37827f5d4ebd270"
+      ],
+      "matches_release": true,
+      "package": "librockchip-mpp-dev",
+      "pool_version": "1:1.0.11-1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "librockchip-mpp1_1.0.11-1_arm64.deb",
+      "paths": [
+        "rockchip/librockchip-mpp1_1.0.11-1_arm64.deb"
+      ],
+      "sha256": [
+        "fd38e960a2e9d7c2b4cc7bdde82475b366851af963dbc17464117dfe911bde31"
+      ],
+      "matches_release": true,
+      "package": "librockchip-mpp1",
+      "pool_version": "1:1.0.11-1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "librockchip-vpu0_1.0.11-1_arm64.deb",
+      "paths": [
+        "rockchip/librockchip-vpu0_1.0.11-1_arm64.deb"
+      ],
+      "sha256": [
+        "50aebad511cc1ef999a3c3692dc5df5c4e7dcb9c0025fb29d2e7ca1b049fd5ab"
+      ],
+      "matches_release": true,
+      "package": "librockchip-vpu0",
+      "pool_version": "1:1.0.11-1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "libswresample5_7.1.5+rkmpp-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/libswresample5_7.1.5+rkmpp-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "31f5234cef86074c1569c24809126c1969701c0118e70df908612d8f925c1310"
+      ],
+      "matches_release": true,
+      "package": "libswresample5",
+      "pool_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "libswscale8_7.1.5+rkmpp-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/libswscale8_7.1.5+rkmpp-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "7f67683c72745ea06b70b87d766b949e76a01ea58e877172569d884765e25de3"
+      ],
+      "matches_release": true,
+      "package": "libswscale8",
+      "pool_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_version": "7:7.1.5+rkmpp-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "libv4l-0t64_1.30.1-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/libv4l-0t64_1.30.1-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "29464957feab11fab080ad360a2d18636dac8e8eef1ce07bec2d4fc51db7499b"
+      ],
+      "matches_release": true,
+      "package": "libv4l-0t64",
+      "pool_version": "1.30.1-1rk1",
+      "installed_version": "1.30.1-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "libv4l-dev_1.30.1-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/libv4l-dev_1.30.1-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "1281d298449898b09cabf54c75aa84837a1d95f0cdd360ced64c5a5a46bc7e7f"
+      ],
+      "matches_release": true,
+      "package": "libv4l-dev",
+      "pool_version": "1.30.1-1rk1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "libv4l-rkmpp_1.8.0-1_arm64.deb",
+      "paths": [
+        "rockchip/libv4l-rkmpp_1.8.0-1_arm64.deb"
+      ],
+      "sha256": [
+        "b0d4cb7a6eced3844af7584d774c6ead417e71f2ad288593768fd000a9275642"
+      ],
+      "matches_release": true,
+      "package": "libv4l-rkmpp",
+      "pool_version": "1.8.0-1",
+      "installed_version": null,
+      "installed_matches_pool": null
+    },
+    {
+      "deb": "libv4l2rds0t64_1.30.1-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/libv4l2rds0t64_1.30.1-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "248e898f1c39dfe6bda0478ce5f58a3fc65651036e8e2abe9a3079b9d6483bc4"
+      ],
+      "matches_release": true,
+      "package": "libv4l2rds0t64",
+      "pool_version": "1.30.1-1rk1",
+      "installed_version": "1.30.1-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "libv4lconvert0t64_1.30.1-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/libv4lconvert0t64_1.30.1-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "ce3ce7b8c36b47964f7eb64c89073cb513cf6a56a008173f8a5187bc7015c9d6"
+      ],
+      "matches_release": true,
+      "package": "libv4lconvert0t64",
+      "pool_version": "1.30.1-1rk1",
+      "installed_version": "1.30.1-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "rockchip-update-engine_1.0.1+v0.3.0-1rk1_arm64.deb",
+      "paths": [
+        "lapis/rockchip-update-engine_1.0.1+v0.3.0-1rk1_arm64.deb",
+        "rockchip/rockchip-update-engine_1.0.1+v0.3.0-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "3bfe546f219b74720860ca89c45e7d75479015a9622738838d9c814fd12cf573",
+        "3bfe546f219b74720860ca89c45e7d75479015a9622738838d9c814fd12cf573"
+      ],
+      "matches_release": true,
+      "package": "rockchip-update-engine",
+      "pool_version": "1.0.1+v0.3.0-1rk1",
+      "installed_version": "1.0.1+v0.3.0-1rk1",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "umtp-responder_1.8.1-1pamir11_arm64.deb",
+      "paths": [
+        "rockchip/umtp-responder_1.8.1-1pamir11_arm64.deb"
+      ],
+      "sha256": [
+        "948cdb0bab7779a71a559924d1e9f8e7ae411e2aca0901ad142152018e62e5bf"
+      ],
+      "matches_release": true,
+      "package": "umtp-responder",
+      "pool_version": "1.8.1-1pamir11",
+      "installed_version": "1.8.1-1pamir11",
+      "installed_matches_pool": true
+    },
+    {
+      "deb": "v4l-utils_1.30.1-1rk1_arm64.deb",
+      "paths": [
+        "rockchip/v4l-utils_1.30.1-1rk1_arm64.deb"
+      ],
+      "sha256": [
+        "cd82d1c4372f610fe34d46c1e48d57fbfb5e8e029d7236e11e89ed6017cb0cc7"
+      ],
+      "matches_release": true,
+      "package": "v4l-utils",
+      "pool_version": "1.30.1-1rk1",
+      "installed_version": "1.30.1-1rk1",
+      "installed_matches_pool": true
+    }
+  ],
+  "installed_pool_packages": 21,
+  "metadata_source": "dpkg-deb Package/Version fields, including epochs; not filename inference"
+}
