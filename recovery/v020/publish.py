@@ -9,7 +9,7 @@ from pathlib import Path
 base=Path(__file__).resolve().parent
 spec=importlib.util.spec_from_file_location('publisher',base.parents[1]/'ci/ota-publish.py')
 p=importlib.util.module_from_spec(spec); spec.loader.exec_module(p)
-work=Path(os.environ['RUNNER_TEMP'])/'v020-publish'
+work=Path(os.environ['RUNNER_TEMP'])/('v020-publish-'+os.environ['GITHUB_RUN_ID'])
 work.mkdir(exist_ok=False)
 os.environ.pop('AWS_PROFILE',None)
 os.environ.update(AWS_REGION=p.REGION,AWS_DEFAULT_REGION=p.REGION)
@@ -25,7 +25,7 @@ for item in expected:
     if path.stat().st_size!=item['bytes'] or p.verify_checksum(path,item['sha256']+'  '+path.name,path.name)!=item['sha256']:
         raise ValueError('Retained artifact changed')
 bundle,uboot=map(lambda i:Path(i['path']),expected)
-ca=Path(os.environ['RUNNER_TEMP'])/'v020-recovery/rauc-ca.pem'
+ca=Path(os.environ['RUNNER_TEMP'])/('v020-recovery-'+os.environ['GITHUB_RUN_ID'])/'rauc-ca.pem'
 info=json.loads(p.output('rauc','info','--keyring='+str(ca),'--output-format=json',str(bundle)))
 p.validate_bundle(info,{'version':'0.2.0','compatible':'pamir-lapis-rk3576-dev'})
 exe=p.build_publisher(work,'1c8b65545e867eecfb3da317a673e37c8198ff53')
@@ -37,7 +37,7 @@ def check(version):
     return p.check_offer(work,token,key,'dev',version)
 def validate(offer):
     p.validate_offer(offer,'0.2.0',expected[0]['sha256'],expected[0]['bytes'],expected[1]['sha256'],expected[1]['bytes'])
-before=check('0.0.0')
+before=check('0.2.0-rc.2')
 if before.get('update_available') and before['update']['version']=='0.2.0':
     validate(before)
     print('Identical final dev OTA is already live; no duplicate writes.',flush=True)
@@ -45,7 +45,7 @@ else:
     if check('0.2.0').get('update_available'):
         raise ValueError('Newer dev release already offered')
     subprocess.run([str(exe),'publish','--bundle',str(bundle),'--uboot',str(uboot),'--board','lapis','--channel','dev','--version','0.2.0','--region','us-west-2','--bucket','pamir-ota-bundles','--table','lapis-ota-releases'],check=True)
-for current in ['0.0.0','0.2.0-rc.2','0.2.0-rc.3']:
+for current in ['0.1.0','0.2.0-rc.2','0.2.0-rc.3']:
     validate(check(current))
 if check('0.2.0').get('update_available'):
     raise ValueError('Installed 0.2.0 offered a reinstall')

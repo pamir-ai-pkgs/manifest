@@ -20,7 +20,7 @@ jobs:
       - name: Verify retained v0.2.0 dev artifacts without modifying them
         run: |
           export PATH="$PATH:/usr/sbin:/sbin"
-          sudo python3 recovery/v020/verify.py "$RUNNER_TEMP/v020-recovery"
+          sudo python3 recovery/v020/verify.py "$RUNNER_TEMP/v020-recovery-$GITHUB_RUN_ID"
       - uses: actions/setup-go@v5
         if: inputs.publish
         with:
@@ -44,6 +44,6 @@ jobs:
         with:
           name: v020-dev-recovery-evidence
           path: |
-            ${{ runner.temp }}/v020-recovery/
-            ${{ runner.temp }}/v020-publish/publication-verification.json
+            ${{ runner.temp }}/v020-recovery-${{ github.run_id }}/
+            ${{ runner.temp }}/v020-publish-${{ github.run_id }}/publication-verification.json
           if-no-files-found: error
