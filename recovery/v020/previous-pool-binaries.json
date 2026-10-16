@@ -1,0 +1,110 @@
+{
+  "verified_at": "2026-10-16T01:09:48.075381+00:00",
+  "packages": [
+    {
+      "deb": "chromium_154.0.8037.92-1~deb13u1_arm64.deb",
+      "deb_sha256": "e5c1c07af4d0bf331cb878aae53b3b1031588f7e5cf8f82329f5b6e4e7d0d5bf",
+      "installed_files": [
+        {
+          "path": "usr/lib/chromium/chromium",
+          "sha256": "ec4f3e03a7780806079be9df616924c5c0e5f52a072875f307a86110fbf20682"
+        }
+      ]
+    },
+    {
+      "deb": "chromium-common_154.0.8037.92-1~deb13u1_arm64.deb",
+      "deb_sha256": "41b8346a4a7de14709ff849ee2c60ce7a835470b609943728a3786c284700657",
+      "installed_files": [
+        {
+          "path": "usr/lib/chromium/chrome_100_percent.pak",
+          "sha256": "978016bbbb557c0e1d4f5b3d4dbf8c9d7b163f59b4c4649e0f5e297a8e35f68e"
+        },
+        {
+          "path": "usr/lib/chromium/chrome_200_percent.pak",
+          "sha256": "d519a22a99c2a395ca279b25329248430876a00ffd1bc00d0d578fe74711338d"
+        },
+        {
+          "path": "usr/lib/chromium/chrome_crashpad_handler",
+          "sha256": "ba05f7bf54834b09ea62dad9f615644f774093daeb36a92d0ec473ebfec7dfb0"
+        },
+        {
+          "path": "usr/lib/chromium/icudtl.dat",
+          "sha256": "495c45cc7a65562ec461f860c310c6b66e006acd96833f61d1aa31f77fe18cf1"
+        },
+        {
+          "path": "usr/lib/chromium/libEGL.so",
+          "sha256": "e767193a08f7d346f53f7170c9681360dad56f1da972c8d7245e542ad9bca136"
+        },
+        {
+          "path": "usr/lib/chromium/libGLESv2.so",
+          "sha256": "d4814b370d2aa4cbb9c0ec044866ad5a96474efbf7cc0892be52d13608b1d770"
+        },
+        {
+          "path": "usr/lib/chromium/libVkICD_mock_icd.so",
+          "sha256": "3e2355c38c512b3d47e1facbefb810dfe6243d6574853eb132b86199a0e0e58a"
+        },
+        {
+          "path": "usr/lib/chromium/libVkICD_mock_icd.so.TOC",
+          "sha256": "885131bb52e8c65d538f21962b2205c2f7b7fc2260dc7316771857d132397575"
+        },
+        {
+          "path": "usr/lib/chromium/libVkLayer_khronos_validation.so",
+          "sha256": "5b3cdf6be3bd59e23cd42c1c1d58cb19ba10ccfa82b2a891ce69f62d7762923b"
+        },
+        {
+          "path": "usr/lib/chromium/libVkLayer_khronos_validation.so.TOC",
+          "sha256": "b58b604ab8af55f85e382c0d5900407153e4872f38cbdbfcef701535f2405b5f"
+        },
+        {
+          "path": "usr/lib/chromium/libvk_swiftshader.so",
+          "sha256": "675423b2792090456fceec06117b3b4ab5960e8bf479084e0a16891e07b9873c"
+        },
+        {
+          "path": "usr/lib/chromium/libvulkan.so.1",
+          "sha256": "2265ad6d49374b33ddcb34bfb8f474444ea2b207f76493aedfcf0cdc21f834c9"
+        },
+        {
+          "path": "usr/lib/chromium/libvulkan.so.1.TOC",
+          "sha256": "3acc87c14e29578fef96c61643bfec5644553247f50f3885f1ab98046bf1bead"
+        },
+        {
+          "path": "usr/lib/chromium/locales/en-US.pak",
+          "sha256": "b623da77a0a585fca0547059b994d121c2c56a3d130ec3ba186f74da2723bf98"
+        },
+        {
+          "path": "usr/lib/chromium/resources.pak",
+          "sha256": "c460dc62482bc6ca4147e5f73dfcada142170132f7feddd0cd73acd4fa3b169e"
+        },
+        {
+          "path": "usr/lib/chromium/snapshot_blob.bin",
+          "sha256": "4ca981a615429c7d85a66fb8e27060e9150eddf2fb65da19056039aaab126358"
+        },
+        {
+          "path": "usr/lib/chromium/v8_context_snapshot.bin",
+          "sha256": "59248a3dc560652de5c1120eacf8b6eba46818a5c1921db1108356f98891b77c"
+        },
+        {
+          "path": "usr/lib/chromium/vk_swiftshader_icd.json",
+          "sha256": "c9eef28b6b984fec220ef0abfecc40b502d46946706e47bfe97707027cb818bd"
+        }
+      ]
+    },
+    {
+      "deb": "gstreamer1.0-lapis-webrtc_0.14.5-1_arm64.deb",
+      "deb_sha256": "ebfa9ccd3791e969db4ad47b2b75a2bbf5cab8ed3dc4dc3669cc1127cf3b82a7",
+      "installed_files": [
+        {
+          "path": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstrswebrtc.so",
+          "sha256": "d57c892084884a008df4844e9678cddf6655becd5991133c560e86e77a22f9f9"
+        }
+      ]
+    }
+  ],
+  "actual_manifest_signature": "Ed25519 verified with installed public trust key",
+  "actual_cache": {
+    "files_matched": 509,
+    "nar_signatures_verified": 254,
+    "matches_pinned_closure": true
+  },
+  "pool_sha256": "5ea84800fb7afded7b679c60a0faa3f62081e01ee735b6515594bcb5fd8be7c9"
+}

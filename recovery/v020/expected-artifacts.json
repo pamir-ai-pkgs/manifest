@@ -1,0 +1,12 @@
+[
+  {
+    "path": "/srv/bsp/workspaces/pamir-rk3576-dvt-stable/output/releases/ci/38851595535-1/IMAGES/lapis-dvt-dev-v0.2.0.raucb",
+    "bytes": 818862789,
+    "sha256": "556616416daaf87c2451b203e158f41bf5a12d457536647eabf9d91e41efe9bf"
+  },
+  {
+    "path": "/srv/bsp/workspaces/pamir-rk3576-dvt-stable/output/releases/ci/38851595535-1/IMAGES/uboot.img",
+    "bytes": 4194304,
+    "sha256": "ee4937a33a2a4109130ba4dd5247eac71db7aa312a5ad2bbf1b4f936e87f9565"
+  }
+]

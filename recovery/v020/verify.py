@@ -51,6 +51,22 @@ uboot = RELEASE/'IMAGES/uboot.img'
 info = json.loads(run('rauc','info','--keyring='+str(ca),'--output-format=json',str(bundle)))
 assert info['version']=='v0.2.0' and info['compatible']=='pamir-lapis-rk3576-dev'
 save('rauc-info.json', info)
+for image in info['images']:
+    for slot, meta in image.items():
+        file = ROOTFS if slot == 'rootfs' else RELEASE/'IMAGES'/meta['filename']
+        assert file.stat().st_size == meta['size'] and sha(file) == meta['checksum'], slot
+for wanted in json.loads((BASE/'expected-artifacts.json').read_text()):
+    file=Path(wanted['path'])
+    assert file.stat().st_size==wanted['bytes'] and sha(file)==wanted['sha256'], str(file)
+assert hashlib.sha256(read('/usr/lib/lapis-display/gst_capture.py')).hexdigest()=='6c38d4bae93f223f54d2f51d7d2fdbecfe22900a7685d1ef86912443970a3b6e'
+assert b"GST_MPP_NO_RGA" in read('/usr/lib/lapis-display/gst_capture.py')
+compat=json.loads(read('/usr/share/lapis-terminal-app/compatibility-v1.json'))
+assert compat['terminal_input_protocol_version']==3 and compat['icon_catalog_version']==2
+save('terminal-compatibility.json',compat)
+for package in json.loads((BASE/'previous-pool-binaries.json').read_text())['packages']:
+    for file in package['installed_files']:
+        assert hashlib.sha256(read('/'+file['path'])).hexdigest()==file['sha256'], file['path']
+
 sidecar=json.loads((RELEASE/'IMAGES/rootfs.img.system-image.json').read_text())
 root_sha=sha(ROOTFS)
 assert root_sha=='3cfc810b289c7acf4c3377c4a08d51d848eb790a25c8148b04ab7b304e189224'
