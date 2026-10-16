@@ -1,0 +1,92 @@
+[
+  {
+    "package": "lapis-bootanim",
+    "path": "usr/bin/lapis-bootanim",
+    "sha256": "d44aeda7fcf61a54ad36037efe07cdf427ca78b91f928f4d63e7273f90f25bb1"
+  },
+  {
+    "package": "lapis-display-session",
+    "path": "usr/bin/lapis-display-session",
+    "sha256": "3f1bbbb19d716dcd026b696bd51b9a37ecd28021afaf8d399de9504fd46b8056"
+  },
+  {
+    "package": "lapis-healthd",
+    "path": "usr/bin/lapis-healthd",
+    "sha256": "ab1d6986e28822a13fd42ce878b31a5c9bda954919afd39746130678ecb3c2d2"
+  },
+  {
+    "package": "lapis-healthd",
+    "path": "usr/libexec/lapis-healthd-fault-observer",
+    "sha256": "829670489a93f074ec498d849c4288287de6acc674c2965cc41410c4b946ebce"
+  },
+  {
+    "package": "lapis-hwserviced",
+    "path": "usr/bin/lapis-hwserviced",
+    "sha256": "6212cef4e631314773b66ed332ce6505cce4e5427f32cc63ff71c5153a514d43"
+  },
+  {
+    "package": "lapis-hwserviced",
+    "path": "usr/bin/lapis-hwserviced-perf-baseline",
+    "sha256": "f4d8c5c435f25628bce84189e8842d04d11bbda5bcf67638831edcd0a3c122d3"
+  },
+  {
+    "package": "lapis-hwserviced",
+    "path": "usr/bin/lapis-hwtop",
+    "sha256": "40a2d0f51062a6d13c367b1c8af45e756a595ecf722cf952cb307ad36d38b3c6"
+  },
+  {
+    "package": "lapis-hwserviced",
+    "path": "usr/libexec/lapis-hwserviced/check-exclusive-display",
+    "sha256": "46718f26cdec629625b62ecf2d87e0b254234a366922d86b3fccaeb3ff9eb1d0"
+  },
+  {
+    "package": "lapis-hwserviced",
+    "path": "usr/libexec/lapis-hwserviced/lapis-sound-player",
+    "sha256": "58090f9cdf1401c6996b9c3245ad34a42f779c3c91a1358c3f3a8e3dd5703136"
+  },
+  {
+    "package": "lapis-hwserviced",
+    "path": "usr/libexec/lapis-hwserviced/lapis-user-credentiald",
+    "sha256": "c1b8446f44e7c6cf375f35251c5c9dcaeacc79ae9a78f6953be83fd288b99e7e"
+  },
+  {
+    "package": "lapis-hwserviced",
+    "path": "usr/libexec/lapis-hwserviced/lapis-xu316-init",
+    "sha256": "0d75fc0d4b9262b19de093f4a388ed448484e6ea34f0a851e98ef67ee2ebf090"
+  },
+  {
+    "package": "lapis-hwserviced",
+    "path": "usr/libexec/lapis-storage-eject.py",
+    "sha256": "7b45855e1d7e382c056118a8ba639cc2e412bb83ec4c3733f2844b884dabce71"
+  },
+  {
+    "package": "lapis-ota",
+    "path": "usr/bin/lapis-ota",
+    "sha256": "4a3b5eacbf52553503bf8952ecdbe4701978d6ad060f0d3892148f520f434a65"
+  },
+  {
+    "package": "lapis-ota",
+    "path": "usr/lib/rauc/backend/lapis-avb",
+    "sha256": "4abc9b733ef5f1c579d2167fb204ce6d56c65108b7442dc4cee39bb4f8ff3d0f"
+  },
+  {
+    "package": "lapis-ota",
+    "path": "usr/lib/rauc/lapis-rauc-slot.sh",
+    "sha256": "4ee1d4691340d9657de1fa15b99a8af08254119afa9bec538cc2c78fbb90cf9b"
+  },
+  {
+    "package": "lapis-telemetryd",
+    "path": "usr/bin/lapis-telemetryd",
+    "sha256": "a9653ab5f681d303caa393d8e0606f56320ffc17826fa6787d5e844332ccadb7"
+  },
+  {
+    "package": "lapis-terminal-app",
+    "path": "usr/bin/lapis-terminal-app",
+    "sha256": "20c8c5fa66062aec3b303d669cd93020753e33335814f9a9b47acacd86216cef"
+  },
+  {
+    "package": "lapis-update",
+    "path": "usr/bin/lapis-update",
+    "sha256": "56d0c71658309ca949aa38999539d8df715bddea23615579dd35525f240e6c96"
+  }
+]

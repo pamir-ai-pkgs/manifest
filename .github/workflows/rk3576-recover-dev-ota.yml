@@ -1,0 +1,24 @@
+name: Recover final DVT dev OTA
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rk3576-bsp-release
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: [self-hosted, linux, x64, rk3576, bsp]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - name: Verify retained v0.2.0 dev artifacts without modifying them
+        run: |
+          export PATH="$PATH:/usr/sbin:/sbin"
+          sudo python3 recovery/v020/verify.py "$RUNNER_TEMP/v020-recovery"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v020-dev-recovery-evidence
+          path: ${{ runner.temp }}/v020-recovery/
+          if-no-files-found: error
