@@ -1,0 +1,98 @@
+{
+  "authorization": "User authorized removing older images to free space for production rebuild",
+  "inventory_run": 38985353724,
+  "target_free_bytes": 134217728000,
+  "purpose": "Remove duplicate old raw update intermediates; preserve release archives, current dev files, sources and caches",
+  "files": [
+    {
+      "path": "/srv/bsp/workspaces/pamir-rk3576-nightly/output/update-ab/Image/update.raw.img",
+      "bytes": 8469704708,
+      "allocated": 8469712896,
+      "mtime": 1790416070.3233194,
+      "nlink": 1,
+      "inode": 532987,
+      "device": 66305
+    },
+    {
+      "path": "/srv/bsp/workspaces/pamir-rk3576-nightly/output/update-ab/Image/update.img",
+      "bytes": 8470422147,
+      "allocated": 8470429696,
+      "mtime": 1790416119.9549816,
+      "nlink": 1,
+      "inode": 532988,
+      "device": 66305
+    },
+    {
+      "path": "/srv/bsp/workspaces/pamir-rk3576-dvt-nightly/output/update-ab/Image/update.raw.img",
+      "bytes": 8469704708,
+      "allocated": 8469712896,
+      "mtime": 1790419054.9148757,
+      "nlink": 1,
+      "inode": 8134496,
+      "device": 66305
+    },
+    {
+      "path": "/srv/bsp/workspaces/pamir-rk3576-dvt-nightly/output/update-ab/Image/update.img",
+      "bytes": 8470422147,
+      "allocated": 8470429696,
+      "mtime": 1790419132.4983406,
+      "nlink": 1,
+      "inode": 8134498,
+      "device": 66305
+    },
+    {
+      "path": "/srv/bsp/workspaces/pamir-rk3576-candidate/output/update-ab/Image/update.raw.img",
+      "bytes": 8475996164,
+      "allocated": 8476004352,
+      "mtime": 1791088856.7022872,
+      "nlink": 1,
+      "inode": 7382343,
+      "device": 66305
+    },
+    {
+      "path": "/srv/bsp/workspaces/pamir-rk3576-candidate/output/update-ab/Image/update.img",
+      "bytes": 8476713603,
+      "allocated": 8476721152,
+      "mtime": 1791088905.6419501,
+      "nlink": 1,
+      "inode": 7382344,
+      "device": 66305
+    },
+    {
+      "path": "/srv/bsp/workspaces/pamir-rk3576-dvt-candidate/output/update-ab/Image/update.raw.img",
+      "bytes": 8475996164,
+      "allocated": 8476004352,
+      "mtime": 1791093665.8668678,
+      "nlink": 1,
+      "inode": 545907,
+      "device": 66305
+    },
+    {
+      "path": "/srv/bsp/workspaces/pamir-rk3576-dvt-candidate/output/update-ab/Image/update.img",
+      "bytes": 8476713603,
+      "allocated": 8476721152,
+      "mtime": 1791093715.5385485,
+      "nlink": 1,
+      "inode": 545908,
+      "device": 66305
+    },
+    {
+      "path": "/srv/bsp/workspaces/pamir-rk3576-secure/output/update-ab/Image/update.raw.img",
+      "bytes": 7994990596,
+      "allocated": 7994998784,
+      "mtime": 1791091214.9345593,
+      "nlink": 1,
+      "inode": 3556222,
+      "device": 66305
+    },
+    {
+      "path": "/srv/bsp/workspaces/pamir-rk3576-secure/output/update-ab/Image/update.img",
+      "bytes": 7995708035,
+      "allocated": 7995715584,
+      "mtime": 1791091261.7102501,
+      "nlink": 1,
+      "inode": 3556223,
+      "device": 66305
+    }
+  ]
+}

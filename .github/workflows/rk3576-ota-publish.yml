@@ -1,4 +1,4 @@
-name: Inspect runner old image storage
+name: Clean approved obsolete raw image intermediates
 on:
   workflow_dispatch:
 permissions:
@@ -12,10 +12,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6.0.3
-      - name: Inventory generated images and active workspace users
-        run: sudo python3 recovery/production/disk.py "$RUNNER_TEMP/production-disk-$GITHUB_RUN_ID"
+      - name: Delete only selected inactive old image intermediates
+        run: sudo python3 recovery/production/cleanup.py "$RUNNER_TEMP/production-disk-$GITHUB_RUN_ID"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: production-disk-inventory
+          name: production-image-cleanup-receipt
           path: ${{ runner.temp }}/production-disk-*/
