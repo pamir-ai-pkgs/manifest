@@ -61,9 +61,16 @@ assert info['version']=='v0.2.0'
 assert info['compatible']==read('/etc/rauc/system.conf').decode().split('compatible=',1)[1].splitlines()[0].strip()
 assert not info['compatible'].endswith('-dev')
 save('rauc-info.json', info)
+firmware = SDK/'output/firmware'
+payloads = {'rootfs': firmware/'rootfs.img'}
+for slot in ('boot', 'vbmeta'):
+    slotted = firmware/(slot+'_a.img')
+    payloads[slot] = slotted if slotted.is_file() else firmware/(slot+'.img')
 for image in info['images']:
     for slot, meta in image.items():
-        file = ROOTFS if slot == 'rootfs' else RELEASE/'IMAGES'/meta['filename']
+        # RAUC uses generic names inside the bundle; production firmware has
+        # per-slot vbmeta/boot names. Match the bundle builder's exact inputs.
+        file = payloads[slot]
         assert file.stat().st_size == meta['size'] and sha(file) == meta['checksum'], slot
 assert hashlib.sha256(read('/usr/lib/lapis-display/gst_capture.py')).hexdigest()=='6c38d4bae93f223f54d2f51d7d2fdbecfe22900a7685d1ef86912443970a3b6e'
 assert b"GST_MPP_NO_RGA" in read('/usr/lib/lapis-display/gst_capture.py')
