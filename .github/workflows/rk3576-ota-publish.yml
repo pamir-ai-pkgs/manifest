@@ -1,60 +1,21 @@
-name: Recover final DVT dev OTA
+name: Inspect runner old image storage
 on:
   workflow_dispatch:
-    inputs:
-      publish_release:
-        description: Publish the existing dev image downloads and release changelog
-        type: boolean
-        default: false
-      publish:
-        description: Publish the verified retained final DVT bundle to dev
-        type: boolean
-        default: false
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: rk3576-bsp-release
   cancel-in-progress: false
 jobs:
-  verify:
+  inspect:
     runs-on: [self-hosted, linux, x64, rk3576, bsp]
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6.0.3
-      - name: Verify retained v0.2.0 dev artifacts without modifying them
-        run: |
-          export PATH="$PATH:/usr/sbin:/sbin"
-          sudo python3 recovery/v020/verify.py "$RUNNER_TEMP/v020-recovery-$GITHUB_RUN_ID"
-      - uses: actions/setup-go@v5
-        if: inputs.publish
-        with:
-          go-version: '1.24.x'
-          cache: false
-      - name: Publish verified DVT dev OTA and verify live signed offer
-        if: inputs.publish
-        env:
-          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
-          GOPRIVATE: github.com/Pamir-AI/*,github.com/pamir-ai-pkgs/*
-          GIT_CONFIG_COUNT: '2'
-          GIT_CONFIG_KEY_0: credential.helper
-          GIT_CONFIG_VALUE_0: ''
-          GIT_CONFIG_KEY_1: credential.https://github.com.helper
-          GIT_CONFIG_VALUE_1: '!gh auth git-credential'
-        run: |
-          export PATH="$PATH:/usr/sbin:/sbin"
-          python3 recovery/v020/publish.py
-      - name: Recover development downloads and publish the release changelog
-        if: inputs.publish_release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ARTIFACT_DOWNLOAD_TOKEN: ${{ secrets.PAMIR_ARTIFACT_DOWNLOAD_TOKEN }}
-        run: python3 recovery/v020/release.py
+      - name: Inventory generated images and active workspace users
+        run: sudo python3 recovery/production/disk.py "$RUNNER_TEMP/production-disk-$GITHUB_RUN_ID"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: v020-dev-recovery-evidence
-          path: |
-            ${{ runner.temp }}/v020-recovery-${{ github.run_id }}/
-            ${{ runner.temp }}/v020-publish-${{ github.run_id }}/publication-verification.json
-            ${{ runner.temp }}/v020-release-${{ github.run_id }}/release-verification.json
-          if-no-files-found: error
+          name: production-disk-inventory
+          path: ${{ runner.temp }}/production-disk-*/
