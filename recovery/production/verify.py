@@ -99,12 +99,19 @@ for para in status.split('\n\n'):
     if fields.get('Status')=='install ok installed': installed[fields['Package']]=fields['Version']
 audit=json.loads((BASE/'prebuilt-audit.json').read_text())
 assert (SDK/'mkosi/packages/.pool-sha256').read_text().strip()==audit['pool_sha256']
+image_config=(SDK/'output/.config').read_text().splitlines()
+assert '# RK_USB_ADBD is not set' in image_config
+assert 'android-adbd' not in installed
 for pkg in audit['packages']:
     for rel in pkg['paths']:
         assert sha(SDK/'mkosi/packages'/rel) in pkg['sha256'], rel
+    if pkg['package']=='android-adbd':
+        # The audit's installed set came from dev. The secure defconfig disables
+        # this optional package; its DEB checksum above still has to match.
+        continue
     if pkg['installed_version'] is not None:
         assert installed.get(pkg['package'])==pkg['installed_version'], pkg['package']
-save('packages.json', {'installed':installed,'verified_pool_debs':audit['unique_pool_deb_count'],'pool_sha256':audit['pool_sha256']})
+save('packages.json', {'installed':installed,'verified_pool_debs':audit['unique_pool_deb_count'],'pool_sha256':audit['pool_sha256'],'android_adbd_absent_as_configured':True})
 binaries=[]
 for old in json.loads((BASE/'previous-binaries.json').read_text()):
     pkg,path=old['package'],old['path']
