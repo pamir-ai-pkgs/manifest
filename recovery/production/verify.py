@@ -100,7 +100,8 @@ for para in status.split('\n\n'):
 audit=json.loads((BASE/'prebuilt-audit.json').read_text())
 assert (SDK/'mkosi/packages/.pool-sha256').read_text().strip()==audit['pool_sha256']
 image_config=(SDK/'output/.config').read_text().splitlines()
-assert '# RK_USB_ADBD is not set' in image_config
+adbd_config=next((line.split('=',1)[1].strip('"') for line in image_config if line.startswith('RK_USB_ADBD=')), 'n')
+assert adbd_config == 'n'
 assert 'android-adbd' not in installed
 for pkg in audit['packages']:
     for rel in pkg['paths']:
