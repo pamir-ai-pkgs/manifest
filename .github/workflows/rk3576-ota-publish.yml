@@ -1,4 +1,4 @@
-name: Clean approved obsolete raw image intermediates
+name: Verify existing DVT production artifacts
 on:
   workflow_dispatch:
 permissions:
@@ -7,15 +7,18 @@ concurrency:
   group: rk3576-bsp-release
   cancel-in-progress: false
 jobs:
-  inspect:
+  verify:
     runs-on: [self-hosted, linux, x64, rk3576, bsp]
-    timeout-minutes: 15
+    timeout-minutes: 30
+    env:
+      SDK_DIR: /srv/bsp/workspaces/v020-dvt-prod-ci-38984242768-2
+      BUILD_ID: 38984242768-2
     steps:
       - uses: actions/checkout@v6.0.3
-      - name: Delete only selected inactive old image intermediates
-        run: sudo python3 recovery/production/cleanup.py "$RUNNER_TEMP/production-disk-$GITHUB_RUN_ID"
+      - name: Verify original production payload without rebuilding or modifying it
+        run: sudo --preserve-env=SDK_DIR,BUILD_ID,GITHUB_RUN_ID python3 recovery/production/verify.py "$RUNNER_TEMP/production-verify-$GITHUB_RUN_ID"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: production-image-cleanup-receipt
-          path: ${{ runner.temp }}/production-disk-*/
+          name: v020-production-verification
+          path: ${{ runner.temp }}/production-verify-*/

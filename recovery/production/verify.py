@@ -1,4 +1,4 @@
-"""Read-only audit of the retained failed-run DVT dev artifacts."""
+"""Read-only audit of the built DVT production artifacts."""
 import hashlib
 import io
 import json
@@ -13,7 +13,8 @@ RELEASE = SDK / 'output/releases/ci' / os.environ['BUILD_ID']
 BASE = Path(__file__).resolve().parent
 OUT = Path(sys.argv[1])
 OUT.mkdir(parents=True, exist_ok=True)
-ROOTFS = SDK / 'mkosi/lapis-rootfs.img'
+ROOTFS = SDK / 'mkosi/lapis-rootfs-verity.img'
+RAW_ROOTFS = SDK / 'mkosi/lapis-rootfs.img'
 
 def run(*args):
     return subprocess.check_output(args, stderr=subprocess.PIPE)
@@ -32,6 +33,12 @@ def save(n, obj):
     (OUT / n).write_text(json.dumps(obj, indent=2)+'\n')
 
 expected = json.loads((BASE/'expected-components.json').read_text())
+assert ROOTFS.stat().st_size > RAW_ROOTFS.stat().st_size
+# Read product contents from the actual deployed payload. Also bind the raw
+# ext4 used to construct it to the exact prefix preceding the verity tree.
+with RAW_ROOTFS.open('rb') as raw, ROOTFS.open('rb') as protected:
+    while block := raw.read(8*1024*1024):
+        assert protected.read(len(block)) == block, 'Raw ext4 differs from verity payload'
 actual = {}
 for path, pin in expected.items():
     actual[path] = run('git', '-c', f'safe.directory={SDK/path}', '-C', str(SDK/path), 'rev-parse', 'HEAD').decode().strip()
@@ -69,9 +76,15 @@ for package in json.loads((BASE/'previous-pool-binaries.json').read_text())['pac
 
 sidecar=json.loads((RELEASE/'IMAGES/rootfs.img.system-image.json').read_text())
 root_sha=sha(ROOTFS)
-artifacts=[{'path':str(p),'bytes':p.stat().st_size,'sha256':sha(p)} for p in [bundle,uboot]]
+checksums={line.split('  ',1)[1].strip():line.split('  ',1)[0] for line in (RELEASE/'SHA256SUMS').read_text().splitlines()}
+artifacts=[]
+for p in [RELEASE/'IMAGES/update.img.xz',bundle,uboot]:
+    digest=sha(p)
+    relative=str(p.relative_to(RELEASE))
+    assert checksums[relative] == digest, relative
+    artifacts.append({'path':str(p),'bytes':p.stat().st_size,'sha256':digest})
 save('artifacts.json', artifacts)
-save('rootfs.json', {'os_release':osrel,'seed':seed,'sha256':root_sha,'sidecar':sidecar})
+save('rootfs.json', {'os_release':osrel,'seed':seed,'sha256':root_sha,'sidecar':sidecar,'raw_ext4_prefix_matches':True,'verified_payload':str(ROOTFS)})
 status=read('/var/lib/dpkg/status').decode()
 installed={}
 for para in status.split('\n\n'):
