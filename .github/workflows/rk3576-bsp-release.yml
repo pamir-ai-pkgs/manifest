@@ -300,6 +300,13 @@ jobs:
             echo "VERSION=${version:-rk3576-${channel}-${build_id}}"
           } >>"$GITHUB_ENV"
 
+      - name: Set isolated bench image identity
+        shell: bash
+        run: |
+          test "$CHANNEL" = scratch
+          echo "RK_IMAGE_VERSION=v0.2.0" >> "$GITHUB_ENV"
+          echo "BENCH_OS_SOURCE=37906fce182b77a19e0e0a1eec567fb425c17602" >> "$GITHUB_ENV"
+
       - name: Bootstrap BSP tools
         shell: bash
         env:
@@ -502,7 +509,19 @@ jobs:
           RAUC_BUNDLE=1 \
             bsp-tools/ci/build-and-upload-release.sh
 
+      - name: Retain isolated bench bundle and provenance
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: bench-os200-dvt-dev
+          path: |
+            ${{ env.SDK_DIR }}/output/releases/ci/${{ env.BUILD_ID }}/IMAGES/*.raucb
+            ${{ env.SDK_DIR }}/output/releases/ci/${{ env.BUILD_ID }}/manifest.xml
+            ${{ env.SDK_DIR }}/output/releases/ci/${{ env.BUILD_ID }}/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Publish GitHub release
+        if: ${{ false }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
