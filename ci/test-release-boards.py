@@ -1,5 +1,7 @@
 """Check board isolation by executing the workflow's parameter resolver."""
 import os
+import importlib.util
+import json
 from pathlib import Path
 import subprocess
 import tempfile
@@ -9,6 +11,51 @@ import yaml
 WORKFLOW = Path(__file__).parents[1] / '.github/workflows/rk3576-bsp-release.yml'
 
 class BoardReleaseTests(unittest.TestCase):
+    def test_candidate_seed_requires_matching_source_channels_and_os_floor(self):
+        spec = importlib.util.spec_from_file_location('seed', WORKFLOW.parents[2] / 'ci/stage-nix-candidate.py')
+        seed = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(seed)
+        source = 'a' * 40
+        candidate = dict(schema=1, source=source, run='123', version='2026.10.24.0.123',
+                         channel='dev', board='rk3576', profile='lapis-vendor',
+                         toplevel='/nix/store/' + 'a' * 32 + '-lapis-env',
+                         nar_hash='sha256-' + 'A' * 43 + '=', closure_size=100,
+                         min_os_version='0.3.0-rc.1')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'candidate.json').write_text(json.dumps(candidate))
+            (root / 'cache').mkdir()
+            (root / 'cache/nix-cache-info').write_text('StoreDir: /nix/store\n')
+            for channel in ('dev', 'sit'):
+                (root / channel).mkdir()
+                manifest = dict(schema_version=1, version=candidate['version'], channel=channel,
+                                board='rk3576', profile='lapis-vendor',
+                                toplevel_store_path=candidate['toplevel'], nar_hash=candidate['nar_hash'],
+                                closure_size=100, min_os_version='0.3.0-rc.1', rollout=100,
+                                signature={'key_id': f'manifest-{channel}-1'})
+                (root / channel / 'manifest.json').write_text(json.dumps(manifest))
+            for image in ('v0.3.0-rc.1', 'v0.3.0'):
+                self.assertEqual(seed.validate_seed(root, source, image), candidate)
+            for image in ('v0.2.0', 'v0.3.0-nightly.1', ''):
+                with self.subTest(image=image), self.assertRaises(ValueError):
+                    seed.validate_seed(root, source, image)
+            with self.assertRaises(ValueError):
+                seed.validate_seed(root, 'b' * 40, 'v0.3.0')
+            path = root / 'sit/manifest.json'
+            manifest = json.loads(path.read_text())
+            manifest['signature']['key_id'] = 'manifest-dev-1'
+            path.write_text(json.dumps(manifest))
+            with self.assertRaises(ValueError):
+                seed.validate_seed(root, source, 'v0.3.0')
+        run = dict(repository={'full_name': seed.REPOSITORY}, head_repository={'full_name': seed.REPOSITORY},
+                   path='.github/workflows/lapis-nix-image-seed.yml', head_branch='main',
+                   event='workflow_dispatch', status='completed', conclusion='success')
+        seed.trusted_run(run, 'lapis-nix-image-seed.yml')
+        for patch in (dict(head_branch='feature'), dict(conclusion='failure'),
+                      dict(head_repository={'full_name': 'fork/lapis'}), dict(event='pull_request')):
+            with self.subTest(patch=patch), self.assertRaises(ValueError):
+                seed.trusted_run(run | patch, 'lapis-nix-image-seed.yml')
+
     def test_authentication_setup_recovers_after_interrupted_cleanup(self):
         job = yaml.safe_load(WORKFLOW.read_text())['jobs']['build']
         body = next(s['run'] for s in job['steps'] if s.get('name') == 'Configure GitHub authentication')
