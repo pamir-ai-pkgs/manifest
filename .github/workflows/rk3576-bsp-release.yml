@@ -707,7 +707,7 @@ jobs:
           QA_BUILD_ID: ${{ inputs.collect_build_id }}
         run: |
           [[ "$QA_BUILD_ID" =~ ^40440954011-[0-9]+$ ]] || exit 1
-          root="/srv/bsp/workspaces/pamir-rk3576-scratch/output/releases/ci/$QA_BUILD_ID"
+          root="/srv/bsp/workspaces/pamir-rk3576-dvt-scratch/output/releases/ci/$QA_BUILD_ID"
           test -s "$root/IMAGES/lapis-dvt-dev-v0.2.0.raucb"
           echo "QA_BUNDLE_ROOT=$root" >> "$GITHUB_ENV"
       - name: Retain private bench bundle and provenance
