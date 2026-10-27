@@ -25,6 +25,10 @@ on:
         description: Release tag. Candidate/stable/nightly dispatch must build the matching rk3576-v* tag.
         required: false
         default: ""
+      collect_build_id:
+        description: Bench-only completed scratch build ID to collect without rebuilding.
+        required: false
+        default: ""
       publish_ota:
         description: "Also publish final-version bundles to dev and SIT OTA channels"
         required: false
@@ -40,6 +44,7 @@ concurrency:
 
 jobs:
   build:
+    if: inputs.collect_build_id == ''
     name: Build and publish ${{ matrix.board }} images
     strategy:
       fail-fast: false
@@ -690,3 +695,29 @@ jobs:
           # them from secrets on every run.
           rm -rf "${SDK_DIR:-/nonexistent}/u-boot/keys" \
             "${SEC_SDK_DIR:-/nonexistent}/u-boot/keys" || true
+
+  collect-bench-bundle:
+    if: github.event_name == 'workflow_dispatch' && inputs.collect_build_id != ''
+    runs-on: [self-hosted, linux, x64, rk3576, bsp]
+    timeout-minutes: 20
+    steps:
+      - name: Validate owned scratch output
+        shell: bash
+        env:
+          QA_BUILD_ID: ${{ inputs.collect_build_id }}
+        run: |
+          [[ "$QA_BUILD_ID" =~ ^40440954011-[0-9]+$ ]] || exit 1
+          root="/srv/bsp/workspaces/pamir-rk3576-scratch/output/releases/ci/$QA_BUILD_ID"
+          test -s "$root/IMAGES/lapis-dvt-dev-v0.2.0.raucb"
+          echo "QA_BUNDLE_ROOT=$root" >> "$GITHUB_ENV"
+      - name: Retain private bench bundle and provenance
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: tmp-integrated-signed-image
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
+          path: |
+            ${{ env.QA_BUNDLE_ROOT }}/IMAGES/*.raucb
+            ${{ env.QA_BUNDLE_ROOT }}/manifest.xml
+            ${{ env.QA_BUNDLE_ROOT }}/SHA256SUMS
