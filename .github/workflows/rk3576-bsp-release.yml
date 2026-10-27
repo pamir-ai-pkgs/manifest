@@ -514,6 +514,7 @@ jobs:
             bsp-tools/ci/build-and-upload-release.sh
 
       - name: Publish GitHub release
+        if: env.CHANNEL != 'scratch'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
