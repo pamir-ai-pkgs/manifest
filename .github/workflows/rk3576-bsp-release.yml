@@ -218,6 +218,13 @@ jobs:
             rauc_bundle=1
           fi
 
+          # Bench-only scratch bundle; never update a release/channel pointer.
+          if [[ "$channel" == "scratch" && "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$version" == "rk3576-v0.2.0" ]] || exit 1
+            [[ "${{ inputs.publish_ota }}" == "false" ]] || exit 1
+            rauc_bundle=1
+          fi
+
           # Secure-leg S3 prefix, mirroring the dev leg's channel layout.
           # Nightlies keep both legs under one nightly/ tree so the prune job
           # can drop a whole night by tag; the dev leg's prefix is passed
@@ -274,6 +281,10 @@ jobs:
           # prerelease suffix, so the rootfs and signed bundle agree.
           rk_image_version=""
           if [[ "$channel" == "stable" || "$channel" == "candidate" || "$channel" == "nightly" ]]; then
+            rk_image_version="${version#rk3576-}"
+          fi
+
+          if [[ "$channel" == "scratch" && "$rauc_bundle" == "1" ]]; then
             rk_image_version="${version#rk3576-}"
           fi
 
