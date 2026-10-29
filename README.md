@@ -141,6 +141,35 @@ mkosi/scripts/fetch-packages.sh     # mkosi package pool (latest release)
 
 ## 3. Build update.img
 
+### CI images from an unpublished Nix build
+
+Lapis can build and cache a closure before its required OS is offered through OTA.
+Run `Nix Package Build (dev)` on Lapis main with the intended floor (for example,
+`0.3.0-rc.1`), then run `Nix Image Seed (dev and SIT)` with that successful build
+run ID. Neither workflow advances an update channel.
+
+For a manual image build, provide the seed workflow's run ID as `nix_seed_run_id`.
+For a tagged recipe, commit `ci/nix-image-seed.json` before creating the tag:
+
+```json
+{"seed_run_id": "SUCCESSFUL_SEED_WORKFLOW_RUN_ID"}
+```
+
+The manifest's `external/lapis` revision must equal the selected closure's source
+commit. A dispatch input and committed seed pin must agree if both are present.
+CI refuses untrusted/failed builds, source mismatches and an image version below
+the closure's OS floor. The dev and secure legs receive dev- and SIT-signed
+manifests for the same closure and version. Existing image signature/hash checks
+remain mandatory; selection provenance is uploaded as `nix-seed-selection-dvt`.
+
+Seed artifacts are retained for 30 days. Complete both the RC and final image
+builds within that window. Later Nix publication selects the original **build**
+run ID, not the seed run ID, and reuses its version and closure. Publication and
+SIT promotion still require the appropriate channel's OS OTA prerequisite.
+Without a seed input or pin, CI retains the existing published-bootstrap path.
+
+### Local build
+
 ```bash
 ./build.sh rockchip_rk3576_lapis_defconfig    # select the Lapis configuration
 ./build.sh                                     # U-Boot + kernel + rootfs + firmware
