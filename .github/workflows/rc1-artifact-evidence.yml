@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Require the completed frozen image build
+      - name: Require the completed dev and SIT builds
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -27,19 +27,32 @@ jobs:
           set -euo pipefail
           gh api repos/pamir-ai-pkgs/manifest/actions/runs/40978188837 > "$RUNNER_TEMP/rc1-target-run.json"
           gh api repos/pamir-ai-pkgs/manifest/actions/runs/40978188837/jobs > "$RUNNER_TEMP/rc1-target-jobs.json"
+          gh api repos/pamir-ai-pkgs/manifest/actions/runs/40989927604 > "$RUNNER_TEMP/rc1-sit-run.json"
+          gh api repos/pamir-ai-pkgs/manifest/actions/runs/40989927604/jobs > "$RUNNER_TEMP/rc1-sit-jobs.json"
           python3 - <<'PY'
           import json, os
           from pathlib import Path
           root = Path(os.environ['RUNNER_TEMP'])
           run = json.loads((root / 'rc1-target-run.json').read_text())
-          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          assert run['status'] == 'completed' and run['conclusion'] == 'failure'
           assert run['run_attempt'] == 3 and run['head_sha'] == '812d6e02bc53eec6dd497f3df14a48b74cba2442'
           jobs = json.loads((root / 'rc1-target-jobs.json').read_text())['jobs']
+          assert len(jobs) == 1 and jobs[0]['conclusion'] == 'failure'
+          steps = {s['name']: s['conclusion'] for s in jobs[0]['steps']}
+          for name in ('Set up OTA publisher toolchain', 'Publish dev OTA release'):
+              assert steps[name] == 'skipped', name
+          assert steps['Publish secure OTA release'] is None
+          for name in ('Build and upload release', 'Publish GitHub release'):
+              assert steps[name] == 'success', name
+          sit = json.loads((root / 'rc1-sit-run.json').read_text())
+          assert sit['status'] == 'completed' and sit['conclusion'] == 'success'
+          assert sit['run_attempt'] == 1 and sit['head_sha'] == 'f799275fcc5c6184a633a8bd55fbbb337fe69277'
+          jobs = json.loads((root / 'rc1-sit-jobs.json').read_text())['jobs']
           assert len(jobs) == 1 and jobs[0]['conclusion'] == 'success'
           steps = {s['name']: s['conclusion'] for s in jobs[0]['steps']}
-          for name in ('Set up OTA publisher toolchain', 'Publish dev OTA release', 'Publish secure OTA release'):
+          for name in ('Set up OTA publisher toolchain', 'Publish dev OTA release', 'Publish secure OTA release', 'Build and upload release', 'Publish GitHub release', 'Clean stale BSP outputs'):
               assert steps[name] == 'skipped', name
-          for name in ('Build and upload release', 'Build and upload secure release', 'Attach secure artifacts to the GitHub release'):
+          for name in ('Build and upload secure release', 'Attach secure artifacts to the GitHub release'):
               assert steps[name] == 'success', name
           PY
       - name: Collect only source, package and kernel evidence
@@ -49,7 +62,7 @@ jobs:
           python3 ci/rc1-collect-evidence.py "$RUNNER_TEMP/rc1-evidence"
       - uses: actions/upload-artifact@v4
         with:
-          name: rc1-image-evidence-40978188837-3
+          name: rc1-image-evidence
           path: ${{ runner.temp }}/rc1-evidence/
           if-no-files-found: error
           retention-days: 30
