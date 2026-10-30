@@ -25,7 +25,7 @@ def copy(source, dest):
         digest = hashlib.file_digest(stream, 'sha256').hexdigest()
     return {'bytes': dest.stat().st_size, 'sha256': digest}
 
-for variant, sdk in [('dev', Path('/srv/bsp/workspaces/pamir-rk3576-dvt-candidate')),
+for variant, sdk in [('dev', Path('/srv/bsp/workspaces/pamir-rk3576-dvt-stable')),
                      ('sit', Path('/srv/bsp/workspaces/pamir-rk3576-dvt-secure'))]:
     report = {'sources': {}, 'packages': {}, 'kernel': {}, 'mutation': 'none; evidence copied read-only'}
     for rel, pin in pins.items():
