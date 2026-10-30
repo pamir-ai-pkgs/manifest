@@ -30,6 +30,7 @@ jobs:
               ls -ld "/usr/local/bin/$tool"
             fi
           done
+          grep -n -E 'DEBUILD_PREPEND_PATH|preserve-envvar|PATH.*usr/sbin' /usr/bin/debuild | head -n 20
 
       - name: Install the frozen source's required Go version
         uses: actions/setup-go@v5
@@ -37,40 +38,56 @@ jobs:
           go-version: '1.26.10'
           cache: false
 
-      - name: Select the verified toolchain while preserving previous executables
+      - name: Select the pinned Go compiler inside Debian packaging
         shell: bash
         run: |
           set -euo pipefail
           toolroot=$(go env GOROOT)
           [ "$(env -u GOROOT GOTOOLCHAIN=local "$toolroot/bin/go" env GOVERSION)" = go1.26.10 ]
+          [[ "$toolroot" =~ ^/[A-Za-z0-9_./-]+$ ]]
           repair_id="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          backup="/srv/bsp/runner-repairs/rc1-go-$repair_id"
+          backup="/srv/bsp/runner-repairs/rc1-debuild-go-$repair_id"
           sudo install -d -m 0700 "$backup"
-          for tool in go gofmt; do
-            target="/usr/local/bin/$tool"
-            [ ! -d "$target" ] || { echo "Refusing to replace directory $target" >&2; exit 1; }
-            if [ -e "$target" ] || [ -L "$target" ]; then
-              sudo cp -a --no-dereference -- "$target" "$backup/$tool"
-            fi
-            sudo ln -s "$toolroot/bin/$tool" "/usr/local/bin/.$tool-rc1-$repair_id"
-            sudo mv -Tf "/usr/local/bin/.$tool-rc1-$repair_id" "$target"
-          done
-          printf 'Prior executables retained at %s; original toolchain directories untouched\n' "$backup"
-          # The BSP driver prepends this system PATH. Test that path rather
-          # than setup-go's per-job PATH, including Debian packaging's clean env.
-          host_path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-          env -u GOROOT GOTOOLCHAIN=local PATH="$host_path" bash -euc '
-            command -v go
-            go version
-            [ "$(go env GOVERSION)" = go1.26.10 ]
-          '
-          probe=$(mktemp -d "$RUNNER_TEMP/rc1-go-probe.XXXXXX")
-          printf 'module runnerprobe\n\ngo 1.26.10\n' > "$probe/go.mod"
-          printf 'package main\nfunc main() {}\n' > "$probe/main.go"
+          config="$HOME/.devscripts"
+          [ ! -L "$config" ] || { echo 'Refusing to modify symlinked devscripts config' >&2; exit 1; }
+          if [ -e "$config" ]; then
+            [ -f "$config" ]
+            sudo cp -a -- "$config" "$backup/devscripts"
+          fi
+          replacement=$(mktemp "$HOME/.devscripts.rc1.XXXXXX")
+          if [ -f "$config" ]; then cat "$config" > "$replacement"; fi
+          # debuild deliberately resets PATH. Its documented configuration
+          # selects this one verified compiler without preserving other env.
+          printf '\n# RC1 runner dependency repair %s\nDEBUILD_PREPEND_PATH="%s/bin${DEBUILD_PREPEND_PATH:+:$DEBUILD_PREPEND_PATH}"\n' \
+            "$repair_id" "$toolroot" >> "$replacement"
+          bash -n "$replacement"
+          chmod 0600 "$replacement"
+          mv -Tf "$replacement" "$config"
+          printf 'Prior devscripts configuration retained at %s\n' "$backup"
+
+      - name: Verify an actual package from the unchanged frozen OTA source
+        shell: bash
+        run: |
+          set -euo pipefail
+          source=/srv/bsp/workspaces/pamir-rk3576-dvt-candidate/external/lapis-ota
+          pin=17cd99e3852d1bea0be5ac7617c356ba98ae2675
+          git -C "$source" cat-file -e "$pin^{commit}"
+          probe=$(mktemp -d "$RUNNER_TEMP/rc1-debuild-ota.XXXXXX")
+          mkdir "$probe/lapis-ota"
+          git -C "$source" archive "$pin" | tar -xf - -C "$probe/lapis-ota"
+          printf 'Packaging unchanged OTA source %s in isolated temporary directory\n' "$pin"
           (
-            cd "$probe"
-            env -u GOROOT GOTOOLCHAIN=local PATH="$host_path" \
-              CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o probe .
-            file probe
+            cd "$probe/lapis-ota"
+            just build arm64
           )
-          echo 'Pinned Go1.26.10 host dependency and ARM64 compilation verified; no BSP source or cache modified.'
+          debs=("$probe/lapis-ota/dist/"lapis-ota_*_arm64.deb)
+          [ "${#debs[@]}" -eq 1 ] && [ -f "${debs[0]}" ]
+          dpkg-deb -f "${debs[0]}" Package Version Architecture
+          dpkg-deb -x "${debs[0]}" "$probe/extracted"
+          binary="$probe/extracted/usr/bin/lapis-ota"
+          file "$binary"
+          file "$binary" | grep -q 'ARM aarch64'
+          metadata=$(go version -m "$binary")
+          printf '%s\n' "$metadata" | head -n 1
+          printf '%s\n' "$metadata" | head -n 1 | grep -q 'go1.26.10'
+          echo 'Actual frozen-source OTA Debian package verified with Go1.26.10; release sources and caches untouched.'
