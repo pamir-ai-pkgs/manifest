@@ -35,6 +35,11 @@ on:
         required: false
         type: string
         default: ""
+      resume_sit_only:
+        description: "Recovery only: preserve the uploaded rc.1 dev image and build hardened SIT"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -59,6 +64,7 @@ jobs:
       - bsp
     timeout-minutes: 1440
     env:
+      RESUME_SIT_ONLY: ${{ inputs.resume_sit_only }}
       AWS_DEFAULT_REGION: eu-north-1
       AWS_REGION: eu-north-1
       ARTIFACT_DOWNLOAD_BASE_URL: https://d16xxnueu5edhn.cloudfront.net
@@ -133,6 +139,7 @@ jobs:
           DISPATCH_CHANNEL: ${{ inputs.channel }}
           DISPATCH_MANIFEST_REF: ${{ inputs.manifest_ref }}
           DISPATCH_VERSION: ${{ inputs.version }}
+          DISPATCH_RESUME_SIT_ONLY: ${{ inputs.resume_sit_only }}
         run: |
           manifest_ref="${DISPATCH_MANIFEST_REF:-main}"
           channel="${DISPATCH_CHANNEL:-dev}"
@@ -214,6 +221,18 @@ jobs:
           fi
 
           build_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          if [[ "${DISPATCH_RESUME_SIT_ONLY:-false}" == true ]]; then
+            if [[ "$channel" != candidate || "$version" != rk3576-v0.3.0-rc.1 || "$manifest_ref" != refs/tags/rk3576-v0.3.0-rc.1 ]]; then
+              echo "SIT-only recovery is restricted to the frozen v0.3.0-rc.1 candidate" >&2
+              exit 1
+            fi
+            frozen=$(git ls-remote "$MANIFEST_URL" 'refs/tags/rk3576-v0.3.0-rc.1^{}' | awk '{print $1}')
+            [[ "$frozen" == 812d6e02bc53eec6dd497f3df14a48b74cba2442 ]] || {
+              echo "Frozen rc.1 tag changed; refusing recovery" >&2
+              exit 1
+            }
+          fi
+
           sdk_dir="${WORK_ROOT%/}/pamir-rk3576-${channel}"
 
           # Bundles only for tagged builds, where VERSION matches the baked
@@ -323,6 +342,7 @@ jobs:
           sudo WORK_ROOT=/srv/bsp "$SDK_DIR/bsp-tools/ci/bootstrap-debian-runner.sh"
 
       - name: Clean stale BSP outputs
+        if: env.RESUME_SIT_ONLY != 'true'
         shell: bash
         run: |
           shopt -s nullglob
@@ -365,7 +385,9 @@ jobs:
           cd "$SDK_DIR"
           # Stale outputs can carry root-owned files (mkosi runs as root)
           # and read-only Go module caches; a plain rm cannot clear either.
-          sudo rm -rf output rockdev
+          if [[ "$RESUME_SIT_ONLY" != true ]]; then
+            sudo rm -rf output rockdev
+          fi
           bsp-tools/ci/preflight-runner.sh
 
       - name: Provision FIT boot-chain signing keys
@@ -512,6 +534,7 @@ jobs:
           if-no-files-found: error
 
       - name: Build and upload release
+        if: env.RESUME_SIT_ONLY != 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
@@ -530,6 +553,7 @@ jobs:
             bsp-tools/ci/build-and-upload-release.sh
 
       - name: Publish GitHub release
+        if: env.RESUME_SIT_ONLY != 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
