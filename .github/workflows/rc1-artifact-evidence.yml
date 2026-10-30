@@ -59,11 +59,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 ci/rc1-collect-evidence.py "$RUNNER_TEMP/rc1-evidence"
+          python3 ci/rc1-collect-evidence.py "$RUNNER_TEMP/rc1-evidence-${{ github.run_id }}-${{ github.run_attempt }}"
       - uses: actions/upload-artifact@v4
         with:
           name: rc1-image-evidence
-          path: ${{ runner.temp }}/rc1-evidence/
+          path: ${{ runner.temp }}/rc1-evidence-${{ github.run_id }}-${{ github.run_attempt }}/
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 30
