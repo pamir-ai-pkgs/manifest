@@ -1,0 +1,58 @@
+name: RC2 read-only build evidence
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/rc2-evidence-20261029]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: rk3576-bsp-release
+  cancel-in-progress: false
+
+jobs:
+  evidence:
+    runs-on: [self-hosted, linux, x64, rk3576, bsp]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require completed exact-source RC2 images
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/pamir-ai-pkgs/manifest/actions/runs/40995874236 > "$RUNNER_TEMP/rc2-image-run.json"
+          gh api repos/pamir-ai-pkgs/manifest/actions/runs/40995874236/jobs > "$RUNNER_TEMP/rc2-image-jobs.json"
+          python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          run = json.loads((root / 'rc2-image-run.json').read_text())
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          assert run['run_attempt'] == 1 and run['event'] == 'workflow_dispatch'
+          assert run['head_sha'] == '17b3c51077af20d0a19bcdfdf069de5c72a2340f'
+          jobs = json.loads((root / 'rc2-image-jobs.json').read_text())['jobs']
+          assert len(jobs) == 1 and jobs[0]['conclusion'] == 'success'
+          assert jobs[0]['name'] == 'Build and publish dvt images'
+          steps = {s['name']: s['conclusion'] for s in jobs[0]['steps']}
+          for name in ('Set up OTA publisher toolchain', 'Publish dev OTA release', 'Publish secure OTA release'):
+              assert steps[name] == 'skipped', name
+          for name in ('Build and upload release', 'Publish GitHub release', 'Build and upload secure release', 'Attach secure artifacts to the GitHub release', 'Remove ephemeral GitHub token rewrite', 'Wipe provisioned signing keys'):
+              assert steps[name] == 'success', name
+          PYCODE
+      - name: Collect only source, package and kernel evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ci/rc2-collect-evidence.py "$RUNNER_TEMP/rc2-evidence-${{ github.run_id }}-${{ github.run_attempt }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rc2-image-evidence
+          path: ${{ runner.temp }}/rc2-evidence-${{ github.run_id }}-${{ github.run_attempt }}/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
