@@ -1,0 +1,56 @@
+name: RC1 read-only build evidence
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/rc1-evidence-20261030]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: rk3576-bsp-release
+  cancel-in-progress: false
+
+jobs:
+  evidence:
+    runs-on: [self-hosted, linux, x64, rk3576, bsp]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require the completed frozen image build
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/pamir-ai-pkgs/manifest/actions/runs/40978188837 > "$RUNNER_TEMP/rc1-target-run.json"
+          gh api repos/pamir-ai-pkgs/manifest/actions/runs/40978188837/jobs > "$RUNNER_TEMP/rc1-target-jobs.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          run = json.loads((root / 'rc1-target-run.json').read_text())
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          assert run['run_attempt'] == 3 and run['head_sha'] == '812d6e02bc53eec6dd497f3df14a48b74cba2442'
+          jobs = json.loads((root / 'rc1-target-jobs.json').read_text())['jobs']
+          assert len(jobs) == 1 and jobs[0]['conclusion'] == 'success'
+          steps = {s['name']: s['conclusion'] for s in jobs[0]['steps']}
+          for name in ('Set up OTA publisher toolchain', 'Publish dev OTA release', 'Publish secure OTA release'):
+              assert steps[name] == 'skipped', name
+          for name in ('Build and upload release', 'Build and upload secure release', 'Attach secure artifacts to the GitHub release'):
+              assert steps[name] == 'success', name
+          PY
+      - name: Collect only source, package and kernel evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ci/rc1-collect-evidence.py "$RUNNER_TEMP/rc1-evidence"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rc1-image-evidence-40978188837-3
+          path: ${{ runner.temp }}/rc1-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
