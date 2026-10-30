@@ -328,13 +328,11 @@ jobs:
           # Refresh only the two completed rc.1 output trees. Their uploaded
           # artifacts and independent downloaded verification copies are retained.
           # Keep source, package, compiler, Nix and mkosi caches for this retry.
-          for workspace in "$SDK_DIR" "$SEC_SDK_DIR"; do
-            case "$workspace" in
-              "$WORK_ROOT"/pamir-rk3576-*) ;;
-              *) echo "Unexpected rc.2 output workspace" >&2; exit 1 ;;
-            esac
-            rm -rf -- "$workspace/output" "$workspace/rockdev" 2>/dev/null || \
-              sudo rm -rf -- "$workspace/output" "$workspace/rockdev"
+          shopt -s nullglob
+          for workspace in "$WORK_ROOT"/pamir-rk3576-*; do
+            [[ "$workspace" == "$SDK_DIR" || "$workspace" == "$SEC_SDK_DIR" ]] || continue
+            rm -rf "$workspace/output" "$workspace/rockdev" 2>/dev/null || \
+              sudo rm -rf "$workspace/output" "$workspace/rockdev"
           done
 
       - name: Validate release tooling
