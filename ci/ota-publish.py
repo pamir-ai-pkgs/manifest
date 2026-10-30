@@ -168,15 +168,17 @@ def build_publisher(work, revision):
 
 
 def check_offer(work, token, public_key, channel, current):
-    query = urllib.parse.urlencode(
-        {
-            "board": "lapis",
-            "channel": channel,
-            "current_version": current.split("-")[0],
-            "current_version_full": current,
-            "machine_id": "ci-dvt-ota-publish-verifier",
-        }
-    )
+    params = {
+        "board": "lapis",
+        "channel": channel,
+        "current_version": current.split("-")[0],
+        "machine_id": "ci-dvt-ota-publish-verifier",
+    }
+    # The API accepts 0.0.0 only as the unknown-version fallback, not as an
+    # exact build. Preserve exact versions for installed-release checks.
+    if current != "0.0.0":
+        params["current_version_full"] = current
+    query = urllib.parse.urlencode(params)
     request = urllib.request.Request(
         CHECK_URL + "?" + query, headers={"Authorization": "LapisOTA-v1 " + token}
     )
