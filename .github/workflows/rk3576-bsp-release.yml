@@ -30,6 +30,11 @@ on:
         required: false
         type: boolean
         default: false
+      nix_seed_run_id:
+        description: "Optional successful Lapis Nix Image Seed run; must match the committed seed pin if present"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -320,19 +325,15 @@ jobs:
       - name: Clean stale BSP outputs
         shell: bash
         run: |
+          # Refresh only the two completed rc.1 output trees. Their uploaded
+          # artifacts and independent downloaded verification copies are retained.
+          # Keep source, package, compiler, Nix and mkosi caches for this retry.
           shopt -s nullglob
-          # The Incremental mkosi cache (a bookworm base from the prior release)
-          # must not survive the bookworm->trixie switch or apt resolves stale
-          # bookworm packages (libpipewire deb12u1, old libdrm/libwayland) into
-          # trixie. Wipe every location mkosi may cache the base/packages in.
           for workspace in "$WORK_ROOT"/pamir-rk3576-*; do
-            # Leave the other board's outputs available for retries and inspection.
             [[ "$workspace" == "$SDK_DIR" || "$workspace" == "$SEC_SDK_DIR" ]] || continue
-            rm -rf "$workspace/output" "$workspace/rockdev" \
-                   "$workspace/mkosi/mkosi.cache" "$workspace/mkosi/mkosi.builddir" \
-                   "$workspace/mkosi"/mkosi.cache.* 2>/dev/null || true
+            rm -rf "$workspace/output" "$workspace/rockdev" 2>/dev/null || \
+              sudo rm -rf "$workspace/output" "$workspace/rockdev"
           done
-          rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/mkosi" 2>/dev/null || true
 
       - name: Validate release tooling
         shell: bash
@@ -487,6 +488,25 @@ jobs:
             exit 1
           fi
 
+      - name: Stage selected Nix candidate without channel publication
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          NIX_SEED_RUN_ID: ${{ inputs.nix_seed_run_id }}
+        run: |
+          python3 manifest-checkout/ci/stage-nix-candidate.py \
+            --run-id "${NIX_SEED_RUN_ID:-}" --sdk "$SDK_DIR" \
+            --manifest-file "$MANIFEST_FILE" --image-version "${RK_IMAGE_VERSION:-}" \
+            --output "$RUNNER_TEMP/nix-candidate-$BUILD_ID"
+
+      - name: Record candidate seed provenance
+        if: env.NIX_SEED_RECEIPT != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: nix-seed-selection-${{ matrix.board }}
+          path: ${{ env.NIX_SEED_RECEIPT }}
+          if-no-files-found: error
+
       - name: Build and upload release
         shell: bash
         env:
@@ -495,6 +515,9 @@ jobs:
           # DVT and nightly builds use explicit prefixes to keep their artifacts
           # separate; EVT3 otherwise retains the driver's existing layout.
           cd "$SDK_DIR"
+          if [ -n "${DEV_NIX_SEED_INPUT:-}" ]; then
+            export RK_LAPIS_BOOTSTRAP_INPUT_DIR="$DEV_NIX_SEED_INPUT"
+          fi
           RELEASE_IMAGE_LABEL="$DEV_IMAGE_LABEL" \
           CHANNEL_POINTER_NAME="$DEV_POINTER_NAME" \
           STABLE_POINTER_NAME="$DEV_STABLE_POINTER_NAME" \
@@ -613,6 +636,9 @@ jobs:
           # the release lines apart; CHANNEL_POINTER_NAME needs the matching
           # bsp-tools knob.
           cd "$SEC_SDK_DIR"
+          if [ -n "${SIT_NIX_SEED_INPUT:-}" ]; then
+            export RK_LAPIS_BOOTSTRAP_INPUT_DIR="$SIT_NIX_SEED_INPUT"
+          fi
           if [[ "$BOARD_VARIANT" == evt3 ]]; then
             export STABLE_POINTER_NAME=sec-latest.json
             export CHANNEL_POINTER_NAME=sec-latest.json
