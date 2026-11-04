@@ -208,6 +208,16 @@ The workflow reads private BSP repositories through the repository secret
 `pamir-ai-pkgs` BSP repositories. The EC2 runner's IAM role provides S3 access;
 do not add AWS keys to GitHub secrets.
 
+Tagged builds also need the production OTA bundle signer, the repository
+secrets `PAMIR_RAUC_PROD_SIGNER_KEY_B64` and `PAMIR_RAUC_PROD_SIGNER_CERT_B64`
+(base64 PEM, produced by `bsp-tools/rauc-keys/ota-ca-ceremony.sh`). The
+workflow fails before building when either is absent or malformed, the secure
+leg signs its RAUC bundle with them, and the dev leg keeps the committed
+development signer. A production image trusts only the production OTA CA
+committed in `mkosi/mkosi.extra/etc/rauc/ca.cert.pem`, so a bundle signed any
+other way is rejected by every device. Custody, rotation and the fleet
+migration notes live in `bsp-tools/rauc-keys/README.md`.
+
 - Pushes to `main` do **not** build images. Component revisions in
   `rk3576-debian-ab.xml` are explicit pins; merging a component does not move them.
   Release candidate pins may remain on their release branch/tag without promotion to main.
@@ -247,7 +257,11 @@ publish after verification. RC versions retain their full `-rc.N` suffix.
 
 The job downloads the release manifest/checksums and the matching bundle and
 U-Boot from the artifact bucket. It checks source pins against the tag, hashes,
-the RAUC signature against the pinned image CA, version and compatibility ID.
+the RAUC signature against the keyring the pinned image trusts
+(`dev/etc/rauc/ca.cert.pem` for `dev`, `mkosi.extra/etc/rauc/ca.cert.pem` for
+`sit`), that a SIT image's keyring shares no certificate with the development
+CA, version and compatibility ID. A release whose mkosi pin predates the trust
+split (no `dev/etc/rauc/ca.cert.pem`) is refused on both channels.
 It builds/tests the publisher from the pinned BSP tools revision, using that
 publisher's exact server-schema dependency. The native `lapis-ota-build` runner
 role in account `322551983552`, `us-west-2`, supplies AWS access; no laptop SSO,

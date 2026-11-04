@@ -305,6 +305,51 @@ jobs:
             echo "VERSION=${version:-rk3576-${channel}-${build_id}}"
           } >>"$GITHUB_ENV"
 
+      - name: Require the production OTA signing secrets
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
+        shell: bash
+        env:
+          RAUC_PROD_SIGNER_KEY_B64: ${{ secrets.PAMIR_RAUC_PROD_SIGNER_KEY_B64 }}
+          RAUC_PROD_SIGNER_CERT_B64: ${{ secrets.PAMIR_RAUC_PROD_SIGNER_CERT_B64 }}
+        run: |
+          # The secure leg signs its RAUC bundle with the production signer
+          # (bsp-tools/rauc-keys/README.md). A production image trusts only
+          # the production OTA CA, so a bundle signed with anything else is
+          # rejected by every device, and the bsp-tools release driver
+          # refuses to start that build without the signer. Fail here, before
+          # the multi-hour dev leg, when either secret is absent or malformed.
+          # Nothing is written to disk; the secure leg decodes them later.
+          for name in RAUC_PROD_SIGNER_KEY_B64 RAUC_PROD_SIGNER_CERT_B64; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::PAMIR_${name} secret is not set; the secure leg cannot sign its RAUC bundle" >&2
+              exit 1
+            fi
+          done
+          if ! key_pub="$(printf '%s' "$RAUC_PROD_SIGNER_KEY_B64" | base64 -d \
+              | openssl pkey -pubout -outform DER 2>/dev/null | sha256sum)"; then
+            echo "::error::PAMIR_RAUC_PROD_SIGNER_KEY_B64 does not decode to a PEM private key" >&2
+            exit 1
+          fi
+          if ! cert_pub="$(printf '%s' "$RAUC_PROD_SIGNER_CERT_B64" | base64 -d \
+              | openssl x509 -pubkey -noout 2>/dev/null \
+              | openssl pkey -pubin -outform DER 2>/dev/null | sha256sum)"; then
+            echo "::error::PAMIR_RAUC_PROD_SIGNER_CERT_B64 does not decode to a PEM certificate" >&2
+            exit 1
+          fi
+          if [ "$key_pub" != "$cert_pub" ]; then
+            echo "::error::the production RAUC signer key does not belong to its certificate" >&2
+            exit 1
+          fi
+          cert() { printf '%s' "$RAUC_PROD_SIGNER_CERT_B64" | base64 -d | openssl x509 -noout "$@"; }
+          if ! cert -checkend 0 >/dev/null; then
+            echo "::error::the production RAUC signer certificate has expired ($(cert -enddate)); rotate it (bsp-tools/rauc-keys/README.md)" >&2
+            exit 1
+          fi
+          if ! cert -checkend $((90 * 86400)) >/dev/null; then
+            echo "::warning::the production RAUC signer certificate expires within 90 days ($(cert -enddate)); rotate it (bsp-tools/rauc-keys/README.md)"
+          fi
+          echo "production RAUC signer: $(cert -subject -fingerprint -sha256 -enddate | paste -sd ' ' -)"
+
       - name: Bootstrap BSP tools
         shell: bash
         env:
@@ -572,6 +617,9 @@ jobs:
 
       # Secure leg for the selected board: tagged builds ship the signed secure image, built
       # serially after the dev leg so its failure cannot block that release.
+      # Its RAUC bundle is signed with the production signer from the
+      # PAMIR_RAUC_PROD_SIGNER_*_B64 secrets; the dev leg keeps the committed
+      # development signer (bsp-tools/rauc-keys/README.md).
       # Nightlies build it too, uploaded under nightly/<tag>-sec only and not
       # published to any OTA channel.
       - name: Bootstrap secure workspace BSP tools
@@ -607,6 +655,8 @@ jobs:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
           RK_LAPIS_USER_PASSWORD: ${{ secrets.PAMIR_LAPIS_USER_PASSWORD }}
           LAPIS_CF_ACCESS_SIT: ${{ secrets.PAMIR_LAPIS_CF_ACCESS_SIT }}
+          RAUC_PROD_SIGNER_KEY_B64: ${{ secrets.PAMIR_RAUC_PROD_SIGNER_KEY_B64 }}
+          RAUC_PROD_SIGNER_CERT_B64: ${{ secrets.PAMIR_RAUC_PROD_SIGNER_CERT_B64 }}
         run: |
           # A production image takes the lapis password from this env; when
           # it is unset the build silently ships the defconfig placeholder,
@@ -631,6 +681,23 @@ jobs:
           chmod 0700 "$cfdir"
           (umask 077; printf '%s' "$LAPIS_CF_ACCESS_SIT" > "$cfdir/cf-access.json")
           export RK_LAPIS_CF_ACCESS_FILE="$cfdir/cf-access.json"
+          # The production RAUC signer for this leg's bundle, decoded into the
+          # same private tmpfs directory and handed to the bsp-tools driver
+          # (check_release_signer, mk-rauc-bundle.sh) as RAUC_SIGNER_KEY/
+          # RAUC_SIGNER_CERT. The dev leg never sees it: a production image
+          # trusts only the production OTA CA. The directory is recorded for
+          # the always() wipe step because the trap cannot run when the
+          # runner kills this step.
+          if [ -z "${RAUC_PROD_SIGNER_KEY_B64:-}" ] || [ -z "${RAUC_PROD_SIGNER_CERT_B64:-}" ]; then
+            echo "::error::PAMIR_RAUC_PROD_SIGNER_KEY_B64 / PAMIR_RAUC_PROD_SIGNER_CERT_B64 secrets are not set" >&2
+            exit 1
+          fi
+          (umask 077
+            printf '%s' "$RAUC_PROD_SIGNER_KEY_B64" | base64 -d > "$cfdir/rauc-signer.key.pem"
+            printf '%s' "$RAUC_PROD_SIGNER_CERT_B64" | base64 -d > "$cfdir/rauc-signer.cert.pem")
+          export RAUC_SIGNER_KEY="$cfdir/rauc-signer.key.pem"
+          export RAUC_SIGNER_CERT="$cfdir/rauc-signer.cert.pem"
+          echo "SECURE_STAGE_DIR=$cfdir" >>"$GITHUB_ENV"
           # VERSION stays the tag: bundle version must equal the baked
           # IMAGE_VERSION. The -sec prefix and sec-latest.json pointers keep
           # the release lines apart; CHANNEL_POINTER_NAME needs the matching
@@ -700,7 +767,9 @@ jobs:
         if: always()
         shell: bash
         run: |
-          # Both workspaces' u-boot/keys; the provisioning steps recreate
-          # them from secrets on every run.
+          # Both workspaces' u-boot/keys and the secure leg's tmpfs staging
+          # directory (SIT token and production RAUC signer); the
+          # provisioning steps recreate them from secrets on every run.
           rm -rf "${SDK_DIR:-/nonexistent}/u-boot/keys" \
-            "${SEC_SDK_DIR:-/nonexistent}/u-boot/keys" || true
+            "${SEC_SDK_DIR:-/nonexistent}/u-boot/keys" \
+            "${SECURE_STAGE_DIR:-/nonexistent}" || true

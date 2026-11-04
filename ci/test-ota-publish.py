@@ -29,6 +29,45 @@ class PublishTests(unittest.TestCase):
         self.assertEqual(p["bundle"], "lapis-dvt-sec-v0.2.0.raucb")
         self.assertEqual(p["compatible"], "pamir-lapis-rk3576")
         self.assertEqual(p["checksum_asset"], "SHA256SUMS-dvt-secure")
+        self.assertEqual(p["keyring"], "mkosi.extra/etc/rauc/ca.cert.pem")
+        self.assertTrue(p["secure"])
+
+    def test_development_bundles_verify_against_the_dev_tree_keyring(self):
+        p = publisher.plan("rk3576-v0.2.0-rc.3", "12345-2", "dev")
+        self.assertEqual(p["keyring"], "dev/etc/rauc/ca.cert.pem")
+        self.assertFalse(p["secure"])
+
+    def test_production_keyring_must_not_contain_the_dev_ca(self):
+        import subprocess
+
+        with tempfile.TemporaryDirectory() as d:
+            work = Path(d)
+            certs = {}
+            for name in ("prod", "dev"):
+                key = work / f"{name}.key"
+                cert = work / f"{name}.pem"
+                subprocess.run(
+                    ["openssl", "ecparam", "-name", "prime256v1", "-genkey", "-noout",
+                     "-out", str(key)],
+                    check=True,
+                )  # fmt: skip
+                subprocess.run(
+                    ["openssl", "req", "-new", "-x509", "-key", str(key), "-subj",
+                     f"/CN={name} OTA CA", "-days", "2", "-addext",
+                     "basicConstraints=critical,CA:TRUE", "-out", str(cert)],
+                    check=True,
+                    capture_output=True,
+                )  # fmt: skip
+                certs[name] = cert.read_bytes()
+            prod, dev = certs["prod"], certs["dev"]
+            self.assertEqual(len(publisher.certificate_fingerprints(prod + dev)), 2)
+            self.assertEqual(len(publisher.check_keyring_posture(prod, dev, True)), 1)
+            self.assertEqual(len(publisher.check_keyring_posture(dev, dev, False)), 1)
+            for keyring in (dev, prod + dev):
+                with self.subTest(keyring=keyring[:40]), self.assertRaises(ValueError):
+                    publisher.check_keyring_posture(keyring, dev, True)
+            with self.assertRaises(ValueError):
+                publisher.certificate_fingerprints(b"not a keyring")
 
     def test_reject_unscoped_or_unsafe_publications(self):
         for tag, build, channel in [

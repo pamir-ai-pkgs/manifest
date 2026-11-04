@@ -20,6 +20,12 @@ ACCOUNT = "322551983552"
 CHECK_URL = (
     "https://bf0agb75f8.execute-api.us-west-2.amazonaws.com/api/v1/updates/check"
 )
+IMAGE_REPOSITORY = "pamir-ai-pkgs/linux-rockchip-mkosi"
+# The RAUC keyring each image posture trusts, as committed in the mkosi tree:
+# hardened (SIT) images carry the production OTA CA, development images the
+# Lapis Dev OTA CA from the dev/ tree (bsp-tools/rauc-keys/README.md).
+PRODUCTION_KEYRING = "mkosi.extra/etc/rauc/ca.cert.pem"
+DEV_KEYRING = "dev/etc/rauc/ca.cert.pem"
 
 
 def plan(tag, build_id, channel):
@@ -44,6 +50,8 @@ def plan(tag, build_id, channel):
         "bundle": f"lapis-dvt-{'sec' if secure else 'dev'}-v{version}.raucb",
         "compatible": "pamir-lapis-rk3576" + ("" if secure else "-dev"),
         "checksum_asset": "SHA256SUMS-dvt" + ("-secure" if secure else ""),
+        "keyring": PRODUCTION_KEYRING if secure else DEV_KEYRING,
+        "secure": secure,
     }
 
 
@@ -85,6 +93,35 @@ def validate_offer(result, version, bundle_hash, bundle_size, uboot_hash, uboot_
         raise ValueError("Live offer does not match selected U-Boot")
 
 
+def certificate_fingerprints(pem):
+    """SHA-256 fingerprints of every certificate in a PEM keyring."""
+    blocks = re.findall(
+        rb"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", pem, re.S
+    )
+    if not blocks:
+        raise ValueError("Keyring holds no certificate")
+    prints = set()
+    for block in blocks:
+        line = subprocess.run(
+            ["openssl", "x509", "-noout", "-fingerprint", "-sha256"],
+            input=block + b"\n",
+            capture_output=True,
+            check=True,
+        ).stdout.decode()
+        prints.add(line.strip().split("=", 1)[1])
+    return prints
+
+
+def check_keyring_posture(keyring, dev_keyring, secure):
+    """A production image may trust only CAs the development tree never used."""
+    anchors = certificate_fingerprints(keyring)
+    if secure and anchors & certificate_fingerprints(dev_keyring):
+        raise ValueError(
+            "Production image trusts the development OTA CA; refusing to publish to SIT"
+        )
+    return anchors
+
+
 def validate_bundle(info, selected):
     if (
         info["version"] != "v" + selected["version"]
@@ -106,6 +143,17 @@ def github_file(repo, revision, path):
         output("gh", "api", f"repos/{repo}/contents/{path}?ref={revision}")
     )
     return base64.b64decode(value["content"])
+
+
+def image_file(pins, path):
+    """A file of the pinned mkosi revision, naming the pre-trust-split case."""
+    try:
+        return github_file(IMAGE_REPOSITORY, pins["linux-rockchip-mkosi"], path)
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(
+            f"Pinned image source lacks {path}; the mkosi revision predates the "
+            "RAUC trust split and its bundles are not published"
+        ) from exc
 
 
 def build_publisher(work, revision):
@@ -264,13 +312,12 @@ def publish(tag, build_id, channel, verify_only=False):
             )
             hashes[name] = verify_checksum(work / name, sums, "IMAGES/" + name)
         bundle, uboot = work / selected["bundle"], work / "uboot.img"
+        # Verify against the keyring the pinned image actually trusts, and
+        # never publish a production image that still trusts the dev CA.
         ca = work / "ca.pem"
-        ca.write_bytes(
-            github_file(
-                "pamir-ai-pkgs/linux-rockchip-mkosi",
-                pins["linux-rockchip-mkosi"],
-                "mkosi.extra/etc/rauc/ca.cert.pem",
-            )
+        ca.write_bytes(image_file(pins, selected["keyring"]))
+        check_keyring_posture(
+            ca.read_bytes(), image_file(pins, DEV_KEYRING), selected["secure"]
         )
         info = json.loads(
             output(
@@ -305,11 +352,7 @@ def publish(tag, build_id, channel, verify_only=False):
         key = work / "manifest-key.der"
         key.write_bytes(
             base64.b64decode(
-                github_file(
-                    "pamir-ai-pkgs/linux-rockchip-mkosi",
-                    pins["linux-rockchip-mkosi"],
-                    "mkosi.extra/etc/lapis-ota/manifest.p256.pub",
-                ).strip()
+                image_file(pins, "mkosi.extra/etc/lapis-ota/manifest.p256.pub").strip()
             )
         )
         version = selected["version"]
