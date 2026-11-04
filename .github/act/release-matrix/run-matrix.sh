@@ -13,7 +13,8 @@ if [[ ! -f secrets.env ]]; then
 		printf 'PAMIR_GITHUB_TOKEN=%s\n' "$(gh auth token 2>/dev/null)"
 		for s in PAMIR_ARTIFACT_DOWNLOAD_TOKEN PAMIR_AVB_VBMETA_KEY_B64 \
 			PAMIR_BOOT_KEYS_TGZ_B64 PAMIR_LAPIS_USER_PASSWORD \
-			PAMIR_LAPIS_CF_ACCESS_SIT; do
+			PAMIR_LAPIS_CF_ACCESS_SIT PAMIR_RAUC_PROD_SIGNER_KEY_B64 \
+			PAMIR_RAUC_PROD_SIGNER_CERT_B64; do
 			printf '%s=act-placeholder\n' "$s"
 		done
 	} >secrets.env
@@ -54,6 +55,7 @@ ran() {
 }
 
 SECURE_STEPS=(
+	"Require the production OTA signing secrets"
 	"Bootstrap secure workspace BSP tools"
 	"Stage signing keys into the secure workspace"
 	"Build and upload secure release"
