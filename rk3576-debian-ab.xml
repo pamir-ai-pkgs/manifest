@@ -3,7 +3,7 @@
   <remote name="github" fetch="https://github.com/pamir-ai-pkgs/" review="https://github.com/pamir-ai-pkgs/" />
   <default remote="github" revision="main" dest-branch="main" sync-j="4" sync-c="true" />
 
-  <project name="linux-rockchip-device-rockchip" path="device/rockchip" revision="9bc821e4d9b1833c485d45a3d7a4e7129d103a36">
+  <project name="linux-rockchip-device-rockchip" path="device/rockchip" revision="b9fbc79db6679467e841637f7c59b4c7e3c7aaba">
     <linkfile src="common/scripts/build.sh" dest="build.sh"/>
     <linkfile src="common/Makefile" dest="Makefile"/>
     <linkfile src="common/scripts/rkflash.sh" dest="rkflash.sh"/>

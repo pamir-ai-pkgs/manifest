@@ -564,71 +564,65 @@ jobs:
           path: ${{ env.NIX_SEED_RECEIPT }}
           if-no-files-found: error
 
-      - name: Build and upload release
+      # Legs build prod, then secure, then dev, each uploading as it finishes,
+      # so the factory image is testable first; a failed leg stops the job.
+      # Production leg: the factory and field image (dvt_prod defconfig,
+      # production OTA trust, prod Nix channel), from its own workspace. Never
+      # published to an OTA channel here: releases go through lapis-ota-infra's
+      # publisher.
+      - name: Bootstrap production workspace BSP tools
+        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: manifest-checkout/ci/bootstrap-workspace.sh "$PROD_SDK_DIR"
+
+      - name: Stage signing keys into the production workspace
+        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
+        shell: bash
         run: |
-          # DVT and nightly builds use explicit prefixes to keep their artifacts
-          # separate; EVT3 otherwise retains the driver's existing layout.
-          cd "$SDK_DIR"
-          if [ -n "${DEV_NIX_SEED_INPUT:-}" ]; then
-            export RK_LAPIS_BOOTSTRAP_INPUT_DIR="$DEV_NIX_SEED_INPUT"
+          if [ ! -s "$SDK_DIR/u-boot/keys/dev.pubkey" ] ||
+            [ ! -s "$SDK_DIR/u-boot/keys/avb_vbmeta.pem" ]; then
+            echo "::error::validated signing keys are missing from" \
+              "$SDK_DIR/u-boot/keys" >&2
+            exit 1
           fi
-          RELEASE_IMAGE_LABEL="$DEV_IMAGE_LABEL" \
-          CHANNEL_POINTER_NAME="$DEV_POINTER_NAME" \
-          STABLE_POINTER_NAME="$DEV_STABLE_POINTER_NAME" \
-          S3_PREFIX="$DEV_S3_PREFIX" \
+          rm -rf "$PROD_SDK_DIR/u-boot/keys"
+          install -d -m 0700 "$PROD_SDK_DIR/u-boot/keys"
+          cp -a "$SDK_DIR/u-boot/keys/." "$PROD_SDK_DIR/u-boot/keys/"
+
+      - name: Build and upload production release
+        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          RK_LAPIS_USER_PASSWORD: ${{ secrets.PAMIR_LAPIS_USER_PASSWORD }}
+        run: |
+          # The prod defconfig carries no password; without the secret the
+          # build would ship the placeholder.
+          if [ -z "${RK_LAPIS_USER_PASSWORD:-}" ]; then
+            echo "::error::PAMIR_LAPIS_USER_PASSWORD secret is not set" >&2
+            exit 1
+          fi
+          # No prod Nix channel is published before the first prod image, so
+          # the image takes its closure from a prod Nix Image Seed.
+          if [ -z "${PROD_NIX_SEED_INPUT:-}" ]; then
+            echo "::error::no prod Nix seed: run lapis Nix Image Seed with prod and pin or pass its run" >&2
+            exit 1
+          fi
+          export RK_LAPIS_BOOTSTRAP_INPUT_DIR="$PROD_NIX_SEED_INPUT"
+          export STABLE_POINTER_NAME="$PROD_POINTER_NAME"
+          export CHANNEL_POINTER_NAME="$PROD_POINTER_NAME"
+          cd "$PROD_SDK_DIR"
+          SDK_DIR="$PROD_SDK_DIR" \
+          DEFCONFIG="$PROD_DEFCONFIG" \
+          RELEASE_IMAGE_LABEL="$PROD_IMAGE_LABEL" \
           RAUC_BUNDLE=1 \
+          S3_PREFIX="$PROD_S3_PREFIX" \
             bsp-tools/ci/build-and-upload-release.sh
 
-      - name: Publish GitHub release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_RELEASE_REPOSITORY: ${{ github.repository }}
-        run: |
-          cd "$SDK_DIR"
-          ASSET_NAME_SUFFIX="$DEV_ASSET_SUFFIX" \
-          RELEASE_NOTES_MODE="$DEV_NOTES_MODE" \
-            bsp-tools/ci/publish-github-release.sh
-          # The BSP helper omits manifest.xml for board-suffixed assets. DVT
-          # is now the first and only board, so attach its realized manifest.
-          case "$CHANNEL" in
-            stable|candidate|nightly)
-              gh release upload "$VERSION" --repo "$GITHUB_RELEASE_REPOSITORY" \
-                "output/releases/ci/$BUILD_ID/manifest.xml" --clobber
-              ;;
-          esac
-
-      # Building a release never offers an OS update by default. OTA publication
-      # requires an explicit stable manual dispatch opt-in; existing artifacts
-      # can also be published later through the separate OTA workflow.
-      - name: Set up OTA publisher toolchain
-        if: env.CHANNEL == 'stable' && github.event_name == 'workflow_dispatch' && inputs.publish_ota
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24.x'
-          cache: false
-
-      - name: Publish dev OTA release
-        if: env.CHANNEL == 'stable' && github.event_name == 'workflow_dispatch' && inputs.publish_ota
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
-          GOPRIVATE: github.com/Pamir-AI/*,github.com/pamir-ai-pkgs/*
-          GIT_CONFIG_COUNT: '2'
-          GIT_CONFIG_KEY_0: credential.helper
-          GIT_CONFIG_VALUE_0: ''
-          GIT_CONFIG_KEY_1: credential.https://github.com.helper
-          GIT_CONFIG_VALUE_1: '!gh auth git-credential'
-        run: |
-          export PATH="$PATH:/usr/sbin:/sbin"
-          python3 manifest-checkout/ci/ota-publish.py \
-            --tag "$VERSION" --build-id "$BUILD_ID" --channel dev
-
-      # Secure leg for the selected board: tagged builds ship the signed secure image, built
-      # serially after the dev leg so its failure cannot block that release.
+      # Secure leg for the selected board: tagged builds ship the signed secure
+      # image, from its own workspace, after the production leg.
       # Nightlies build it too, uploaded under nightly/<tag>-sec only and not
       # published to any OTA channel.
       - name: Bootstrap secure workspace BSP tools
@@ -710,6 +704,43 @@ jobs:
           S3_PREFIX="$SEC_S3_PREFIX" \
             bsp-tools/ci/build-and-upload-release.sh
 
+      - name: Build and upload release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: |
+          # DVT and nightly builds use explicit prefixes to keep their artifacts
+          # separate; EVT3 otherwise retains the driver's existing layout.
+          cd "$SDK_DIR"
+          if [ -n "${DEV_NIX_SEED_INPUT:-}" ]; then
+            export RK_LAPIS_BOOTSTRAP_INPUT_DIR="$DEV_NIX_SEED_INPUT"
+          fi
+          RELEASE_IMAGE_LABEL="$DEV_IMAGE_LABEL" \
+          CHANNEL_POINTER_NAME="$DEV_POINTER_NAME" \
+          STABLE_POINTER_NAME="$DEV_STABLE_POINTER_NAME" \
+          S3_PREFIX="$DEV_S3_PREFIX" \
+          RAUC_BUNDLE=1 \
+            bsp-tools/ci/build-and-upload-release.sh
+
+      - name: Publish GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RELEASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          cd "$SDK_DIR"
+          ASSET_NAME_SUFFIX="$DEV_ASSET_SUFFIX" \
+          RELEASE_NOTES_MODE="$DEV_NOTES_MODE" \
+            bsp-tools/ci/publish-github-release.sh
+          # The BSP helper omits manifest.xml for board-suffixed assets. DVT
+          # is now the first and only board, so attach its realized manifest.
+          case "$CHANNEL" in
+            stable|candidate|nightly)
+              gh release upload "$VERSION" --repo "$GITHUB_RELEASE_REPOSITORY" \
+                "output/releases/ci/$BUILD_ID/manifest.xml" --clobber
+              ;;
+          esac
+
       - name: Attach secure artifacts to the GitHub release
         if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
         shell: bash
@@ -728,61 +759,6 @@ jobs:
           RELEASE_NOTES_MODE=append \
             bsp-tools/ci/publish-github-release.sh
 
-      # Production leg: the factory and field image (dvt_prod defconfig,
-      # production OTA trust, prod Nix channel). Built serially after the
-      # secure leg, from its own workspace. Never published to an OTA channel
-      # here: releases go through lapis-ota-infra's publisher.
-      - name: Bootstrap production workspace BSP tools
-        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
-        run: manifest-checkout/ci/bootstrap-workspace.sh "$PROD_SDK_DIR"
-
-      - name: Stage signing keys into the production workspace
-        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
-        shell: bash
-        run: |
-          if [ ! -s "$SDK_DIR/u-boot/keys/dev.pubkey" ] ||
-            [ ! -s "$SDK_DIR/u-boot/keys/avb_vbmeta.pem" ]; then
-            echo "::error::validated signing keys are missing from" \
-              "$SDK_DIR/u-boot/keys" >&2
-            exit 1
-          fi
-          rm -rf "$PROD_SDK_DIR/u-boot/keys"
-          install -d -m 0700 "$PROD_SDK_DIR/u-boot/keys"
-          cp -a "$SDK_DIR/u-boot/keys/." "$PROD_SDK_DIR/u-boot/keys/"
-
-      - name: Build and upload production release
-        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
-          RK_LAPIS_USER_PASSWORD: ${{ secrets.PAMIR_LAPIS_USER_PASSWORD }}
-        run: |
-          # The prod defconfig carries no password; without the secret the
-          # build would ship the placeholder.
-          if [ -z "${RK_LAPIS_USER_PASSWORD:-}" ]; then
-            echo "::error::PAMIR_LAPIS_USER_PASSWORD secret is not set" >&2
-            exit 1
-          fi
-          # No prod Nix channel is published before the first prod image, so
-          # the image takes its closure from a prod Nix Image Seed.
-          if [ -z "${PROD_NIX_SEED_INPUT:-}" ]; then
-            echo "::error::no prod Nix seed: run lapis Nix Image Seed with prod and pin or pass its run" >&2
-            exit 1
-          fi
-          export RK_LAPIS_BOOTSTRAP_INPUT_DIR="$PROD_NIX_SEED_INPUT"
-          export STABLE_POINTER_NAME="$PROD_POINTER_NAME"
-          export CHANNEL_POINTER_NAME="$PROD_POINTER_NAME"
-          cd "$PROD_SDK_DIR"
-          SDK_DIR="$PROD_SDK_DIR" \
-          DEFCONFIG="$PROD_DEFCONFIG" \
-          RELEASE_IMAGE_LABEL="$PROD_IMAGE_LABEL" \
-          RAUC_BUNDLE=1 \
-          S3_PREFIX="$PROD_S3_PREFIX" \
-            bsp-tools/ci/build-and-upload-release.sh
-
       - name: Attach production artifacts to the GitHub release
         if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
         shell: bash
@@ -795,6 +771,32 @@ jobs:
           ASSET_NAME_SUFFIX="$PROD_ASSET_SUFFIX" \
           RELEASE_NOTES_MODE=append \
             bsp-tools/ci/publish-github-release.sh
+
+      # Building a release never offers an OS update by default. OTA publication
+      # requires an explicit stable manual dispatch opt-in; existing artifacts
+      # can also be published later through the separate OTA workflow.
+      - name: Set up OTA publisher toolchain
+        if: env.CHANNEL == 'stable' && github.event_name == 'workflow_dispatch' && inputs.publish_ota
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: false
+
+      - name: Publish dev OTA release
+        if: env.CHANNEL == 'stable' && github.event_name == 'workflow_dispatch' && inputs.publish_ota
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          GOPRIVATE: github.com/Pamir-AI/*,github.com/pamir-ai-pkgs/*
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: credential.helper
+          GIT_CONFIG_VALUE_0: ''
+          GIT_CONFIG_KEY_1: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_1: '!gh auth git-credential'
+        run: |
+          export PATH="$PATH:/usr/sbin:/sbin"
+          python3 manifest-checkout/ci/ota-publish.py \
+            --tag "$VERSION" --build-id "$BUILD_ID" --channel dev
 
       - name: Publish secure OTA release
         if: env.CHANNEL == 'stable' && github.event_name == 'workflow_dispatch' && inputs.publish_ota
