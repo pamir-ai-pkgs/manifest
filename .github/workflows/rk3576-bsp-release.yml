@@ -38,6 +38,9 @@ on:
 
 permissions:
   contents: write
+  # OIDC for the KMS bundle signer (lapis-ota-infra modules/signing): only a
+  # job in the reviewed ota-signing environment may assume the role.
+  id-token: write
 
 concurrency:
   group: rk3576-bsp-release
@@ -57,6 +60,10 @@ jobs:
       - x64
       - rk3576
       - bsp
+    # Release builds (stable/candidate) sign production bundles with the
+    # KMS-held signer; a reviewer approves the job before it starts. Other
+    # builds run without the environment and can't obtain the signing role.
+    environment: ${{ ((github.event_name == 'push' && startsWith(github.ref_name, 'rk3576-v') && !contains(github.ref_name, '-nightly.')) || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["stable","candidate"]'), inputs.channel))) && 'ota-signing' || '' }}
     timeout-minutes: 1440
     env:
       AWS_DEFAULT_REGION: eu-north-1
@@ -275,6 +282,17 @@ jobs:
             esac
           fi
 
+          # Production leg (dvt_prod): DVT stable and candidate builds only.
+          prod_sdk_dir=""
+          prod_s3_prefix=""
+          if [[ "$board" == dvt ]]; then
+            prod_sdk_dir="${WORK_ROOT%/}/pamir-rk3576-dvt-prod"
+            case "$channel" in
+              stable) prod_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/releases/${version}-dvt-prod" ;;
+              candidate) prod_s3_prefix="s3://${S3_BUCKET}/pamir-rk3576/candidates/${version}-dvt-prod/${build_id}" ;;
+            esac
+          fi
+
           # Every tagged release bakes its exact version, including any
           # prerelease suffix, so the rootfs and signed bundle agree.
           rk_image_version=""
@@ -302,7 +320,46 @@ jobs:
             echo "DEV_POINTER_NAME=$dev_pointer_name"
             echo "DEV_STABLE_POINTER_NAME=$dev_stable_pointer_name"
             echo "SEC_POINTER_NAME=$sec_pointer_name"
+            echo "PROD_SDK_DIR=$prod_sdk_dir"
+            echo "PROD_S3_PREFIX=$prod_s3_prefix"
+            echo "PROD_DEFCONFIG=rockchip_rk3576_lapis_${board}_prod_defconfig"
+            echo "PROD_ASSET_SUFFIX=-${board}-prod"
+            echo "PROD_IMAGE_LABEL=DVT-Prod"
+            echo "PROD_POINTER_NAME=${board}-prod-latest.json"
             echo "VERSION=${version:-rk3576-${channel}-${build_id}}"
+          } >>"$GITHUB_ENV"
+
+      # bsp-tools' mk-rauc-bundle.sh signs with the CA each image trusts:
+      # Dev-signed for staging images, re-signed through KMS for production
+      # images (lapis-ota-infra tools/rauc-ca, pinned here). It fetches the
+      # job's OIDC token itself, right before signing.
+      - name: Set up Go for the bundle signer
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.10'
+          cache: false
+
+      - name: Build the OTA bundle signer
+        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          LAPIS_OTA_INFRA_SHA: 8632e9a0638bb3e98a2b742ba40a029afddaaf44
+        run: |
+          set -euo pipefail
+          src="$RUNNER_TEMP/lapis-ota-infra"
+          rm -rf "$src"
+          git init -q "$src"
+          git -C "$src" fetch -q --depth 1 https://github.com/pamir-ai-pkgs/lapis-ota-infra "$LAPIS_OTA_INFRA_SHA"
+          git -C "$src" checkout -q FETCH_HEAD
+          (cd "$src/tools/rauc-ca" && go build -o "$RUNNER_TEMP/rauc-ca" .)
+          {
+            echo "RAUC_RESIGN_TOOL=$RUNNER_TEMP/rauc-ca"
+            echo "RAUC_RESIGN_CERT=$src/environments/production/trust/rauc/signer.cert.pem"
+            echo "RAUC_RESIGN_KEY=alias/lapis-ota-v2-production-rauc-signer"
+            echo "RAUC_RESIGN_REGION=us-west-2"
+            echo "RAUC_RESIGN_ROLE_ARN=arn:aws:iam::322551983552:role/lapis-ota-v2-production-rauc-sign"
           } >>"$GITHUB_ENV"
 
       - name: Bootstrap BSP tools
@@ -671,6 +728,74 @@ jobs:
           RELEASE_NOTES_MODE=append \
             bsp-tools/ci/publish-github-release.sh
 
+      # Production leg: the factory and field image (dvt_prod defconfig,
+      # production OTA trust, prod Nix channel). Built serially after the
+      # secure leg, from its own workspace. Never published to an OTA channel
+      # here: releases go through lapis-ota-infra's publisher.
+      - name: Bootstrap production workspace BSP tools
+        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+        run: manifest-checkout/ci/bootstrap-workspace.sh "$PROD_SDK_DIR"
+
+      - name: Stage signing keys into the production workspace
+        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
+        shell: bash
+        run: |
+          if [ ! -s "$SDK_DIR/u-boot/keys/dev.pubkey" ] ||
+            [ ! -s "$SDK_DIR/u-boot/keys/avb_vbmeta.pem" ]; then
+            echo "::error::validated signing keys are missing from" \
+              "$SDK_DIR/u-boot/keys" >&2
+            exit 1
+          fi
+          rm -rf "$PROD_SDK_DIR/u-boot/keys"
+          install -d -m 0700 "$PROD_SDK_DIR/u-boot/keys"
+          cp -a "$SDK_DIR/u-boot/keys/." "$PROD_SDK_DIR/u-boot/keys/"
+
+      - name: Build and upload production release
+        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
+          RK_LAPIS_USER_PASSWORD: ${{ secrets.PAMIR_LAPIS_USER_PASSWORD }}
+        run: |
+          # The prod defconfig carries no password; without the secret the
+          # build would ship the placeholder.
+          if [ -z "${RK_LAPIS_USER_PASSWORD:-}" ]; then
+            echo "::error::PAMIR_LAPIS_USER_PASSWORD secret is not set" >&2
+            exit 1
+          fi
+          # No prod Nix channel is published before the first prod image, so
+          # the image takes its closure from a prod Nix Image Seed.
+          if [ -z "${PROD_NIX_SEED_INPUT:-}" ]; then
+            echo "::error::no prod Nix seed: run lapis Nix Image Seed with prod and pin or pass its run" >&2
+            exit 1
+          fi
+          export RK_LAPIS_BOOTSTRAP_INPUT_DIR="$PROD_NIX_SEED_INPUT"
+          export STABLE_POINTER_NAME="$PROD_POINTER_NAME"
+          export CHANNEL_POINTER_NAME="$PROD_POINTER_NAME"
+          cd "$PROD_SDK_DIR"
+          SDK_DIR="$PROD_SDK_DIR" \
+          DEFCONFIG="$PROD_DEFCONFIG" \
+          RELEASE_IMAGE_LABEL="$PROD_IMAGE_LABEL" \
+          RAUC_BUNDLE=1 \
+          S3_PREFIX="$PROD_S3_PREFIX" \
+            bsp-tools/ci/build-and-upload-release.sh
+
+      - name: Attach production artifacts to the GitHub release
+        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RELEASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          cd "$PROD_SDK_DIR"
+          SDK_DIR="$PROD_SDK_DIR" \
+          ASSET_NAME_SUFFIX="$PROD_ASSET_SUFFIX" \
+          RELEASE_NOTES_MODE=append \
+            bsp-tools/ci/publish-github-release.sh
+
       - name: Publish secure OTA release
         if: env.CHANNEL == 'stable' && github.event_name == 'workflow_dispatch' && inputs.publish_ota
         shell: bash
@@ -703,4 +828,5 @@ jobs:
           # Both workspaces' u-boot/keys; the provisioning steps recreate
           # them from secrets on every run.
           rm -rf "${SDK_DIR:-/nonexistent}/u-boot/keys" \
-            "${SEC_SDK_DIR:-/nonexistent}/u-boot/keys" || true
+            "${SEC_SDK_DIR:-/nonexistent}/u-boot/keys" \
+            "${PROD_SDK_DIR:-/nonexistent}/u-boot/keys" || true

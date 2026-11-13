@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Stage a trusted Lapis build for dev/SIT images without publishing a channel."""
+"""Stage a trusted Lapis build for dev/SIT (and, when seeded, prod) images without
+publishing a channel."""
 import argparse
 import json
 import os
@@ -33,7 +34,7 @@ def os_version(value):
     return (int(major), int(minor), int(patch), {'nightly': 0, 'rc': 1, None: 2}[kind], int(counter or 0))
 
 
-def validate_seed(root, source, image_version):
+def validate_seed(root, source, image_version, channels=('dev', 'sit')):
     # Reject symlinks/special files before any copying. The existing image
     # bootstrap validator then verifies signatures, hashes and closure topology.
     for path in root.rglob('*'):
@@ -54,7 +55,7 @@ def validate_seed(root, source, image_version):
         raise ValueError('Image version is below the candidate OS floor')
     if not (root / 'cache/nix-cache-info').is_file():
         raise ValueError('Seed has no Nix cache')
-    for channel in ('dev', 'sit'):
+    for channel in channels:
         m = json.loads((root / channel / 'manifest.json').read_text())
         expected = dict(schema_version=1, version=c['version'], channel=channel,
                         board=c['board'], profile=c['profile'], toplevel_store_path=c['toplevel'],
@@ -113,14 +114,32 @@ def main():
         shutil.copyfile(bundle / channel / 'manifest.json', target / 'manifest.json')
         shutil.copytree(bundle / 'cache', target / 'cache', copy_function=os.link)
         (target / '.fetch-complete').touch()
+    # The prod seed is optional (Nix Image Seed with prod: true). It must be the
+    # same candidate, signed for prod in the production environment.
+    artifacts = json.loads(github('api', f'repos/{REPOSITORY}/actions/runs/{run_id}/artifacts'))
+    prod = None
+    if any(a.get('name') == 'nix-image-seed-prod' and not a.get('expired') for a in artifacts.get('artifacts', [])):
+        prod_bundle = args.output / 'download-prod'
+        subprocess.run(['gh', 'run', 'download', run_id, '--repo', REPOSITORY,
+                        '--name', 'nix-image-seed-prod', '--dir', str(prod_bundle)], check=True)
+        if validate_seed(prod_bundle, source, args.image_version, channels=('prod',)) != candidate:
+            raise ValueError('Prod seed is a different candidate from the dev/SIT seed')
+        prod = args.output / 'prod'
+        prod.mkdir()
+        shutil.copyfile(prod_bundle / 'prod' / 'manifest.json', prod / 'manifest.json')
+        shutil.copytree(prod_bundle / 'cache', prod / 'cache', copy_function=os.link)
+        (prod / '.fetch-complete').touch()
     receipt = dict(seed_run_id=run_id, seed_workflow_source=run['head_sha'],
-                   image_version=args.image_version, candidate=candidate)
+                   image_version=args.image_version, candidate=candidate, prod=prod is not None)
     (args.output / 'selection.json').write_text(json.dumps(receipt, indent=2) + '\n')
     with open(os.environ['GITHUB_ENV'], 'a') as env:
         env.write(f'DEV_NIX_SEED_INPUT={args.output / "dev"}\n')
         env.write(f'SIT_NIX_SEED_INPUT={args.output / "sit"}\n')
+        if prod is not None:
+            env.write(f'PROD_NIX_SEED_INPUT={prod}\n')
         env.write(f'NIX_SEED_RECEIPT={args.output / "selection.json"}\n')
-    print(f'Staged candidate {candidate["version"]} from build {candidate["run"]}; source {source}')
+    print(f'Staged candidate {candidate["version"]} from build {candidate["run"]}; source {source}'
+          f'; prod {"seeded" if prod is not None else "not seeded"}')
 
 
 if __name__ == '__main__':
