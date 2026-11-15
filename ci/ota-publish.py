@@ -47,6 +47,45 @@ def plan(tag, build_id, channel):
     }
 
 
+# A prepared bundle is not a tag build's output (for example the v0.3.0 -> v0.4.0
+# migration bundle, repacked for the v0.3.0 dev identity). It is staged under this
+# prefix only, named by hash, and verified with the trust the receiving units have.
+PREPARED_PREFIX = "s3://lapis-os-artifacts/pamir-rk3576/migration/"
+
+
+def prepared_plan(bundle_uri, bundle_sha256, uboot_sha256, version, channel, trust_tag):
+    if channel != "dev":
+        raise ValueError("Prepared bundles are published to the dev channel only")
+    if not re.fullmatch(r"rk3576-v\d+\.\d+\.\d+", trust_tag):
+        raise ValueError("The trust tag must be an exact final release tag")
+    if not re.fullmatch(r"\d+\.\d+\.\d+(-rc\.\d+)?", version):
+        raise ValueError("Prepared version must be X.Y.Z or X.Y.Z-rc.N")
+    for value in (bundle_sha256, uboot_sha256):
+        if not re.fullmatch(r"[0-9a-f]{64}", value):
+            raise ValueError("Prepared artifacts need exact SHA-256 digests")
+    folder, _, name = bundle_uri.rpartition("/")
+    if (not bundle_uri.startswith(PREPARED_PREFIX) or ".." in bundle_uri
+            or not re.fullmatch(r"[A-Za-z0-9._-]+\.raucb", name)):
+        raise ValueError("Prepared bundles must be staged under " + PREPARED_PREFIX)
+    return {
+        "version": version,
+        "bundle_uri": bundle_uri,
+        "uboot_uri": folder + "/uboot.img",
+        "bundle": name,
+        "compatible": "pamir-lapis-rk3576-dev",
+        "sha256": {name: bundle_sha256, "uboot.img": uboot_sha256},
+        "trust_tag": trust_tag,
+    }
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(8 * 1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def verify_checksum(path, sums, relative):
     entries = [line.split() for line in sums.splitlines() if line.strip()]
     matches = [e[0] for e in entries if len(e) == 2 and e[1] == relative]
@@ -217,8 +256,7 @@ def verify_manifest(work, result, public_key, channel):
         raise ValueError("Signed manifest target mismatch")
 
 
-def publish(tag, build_id, channel, verify_only=False):
-    selected = plan(tag, build_id, channel)
+def publishing_identity():
     # Use native instance credentials; never restore the obsolete assume-role hop.
     os.environ.pop("AWS_PROFILE", None)
     os.environ.update(AWS_REGION=REGION, AWS_DEFAULT_REGION=REGION)
@@ -229,6 +267,11 @@ def publish(tag, build_id, channel, verify_only=False):
         f"arn:aws:sts::{ACCOUNT}:assumed-role/lapis-ota-build/"
     ):
         raise ValueError("Unexpected OTA publishing identity")
+
+
+def publish(tag, build_id, channel, verify_only=False):
+    selected = plan(tag, build_id, channel)
+    publishing_identity()
     with tempfile.TemporaryDirectory(
         prefix="dvt-ota-", dir=os.environ.get("RUNNER_TEMP")
     ) as tmp:
@@ -282,104 +325,153 @@ def publish(tag, build_id, channel, verify_only=False):
             )
         )
         validate_bundle(info, selected)
-        executable = build_publisher(work, pins["linux-rockchip-bsp-tools"])
-        if verify_only:
-            print(
-                "Artifacts, signature and publisher verified; no OTA publication requested."
-            )
-            return
-        token_text = output(
-            "aws",
-            "secretsmanager",
-            "get-secret-value",
-            "--secret-id",
-            "lapis-ota/fleet-tokens",
-            "--query",
-            "SecretString",
-            "--output",
-            "text",
-        )
-        token = next(
-            line.strip() for line in reversed(token_text.splitlines()) if line.strip()
-        )
-        key = work / "manifest-key.der"
-        key.write_bytes(
-            base64.b64decode(
-                github_file(
-                    "pamir-ai-pkgs/linux-rockchip-mkosi",
-                    pins["linux-rockchip-mkosi"],
-                    "mkosi.extra/etc/lapis-ota/manifest.p256.pub",
-                ).strip()
+        register(work, selected, channel, bundle, uboot, hashes, pins, verify_only)
+
+
+def publish_prepared(selected, channel, verify_only=False):
+    publishing_identity()
+    with tempfile.TemporaryDirectory(
+        prefix="dvt-ota-", dir=os.environ.get("RUNNER_TEMP")
+    ) as tmp:
+        work = Path(tmp)
+        # The receiving units' trust: their image's RAUC CA and manifest key, and the
+        # publisher their release used, all from that release tag's pins.
+        pins = source_pins(github_file(REPOSITORY, selected["trust_tag"], "rk3576-debian-ab.xml"))
+        hashes = {}
+        for name, uri in [(selected["bundle"], selected["bundle_uri"]), ("uboot.img", selected["uboot_uri"])]:
+            run("aws", "s3", "cp", uri, str(work / name), "--only-show-errors")
+            hashes[name] = sha256_file(work / name)
+            if hashes[name] != selected["sha256"][name]:
+                raise ValueError(f"Checksum mismatch for {name}")
+        bundle, uboot = work / selected["bundle"], work / "uboot.img"
+        ca = work / "ca.pem"
+        ca.write_bytes(
+            github_file(
+                "pamir-ai-pkgs/linux-rockchip-mkosi",
+                pins["linux-rockchip-mkosi"],
+                "mkosi.extra/etc/rauc/ca.cert.pem",
             )
         )
-        version = selected["version"]
+        info = json.loads(
+            output("rauc", "info", "--keyring=" + str(ca), "--output-format=json", str(bundle))
+        )
+        validate_bundle(info, selected)
+        print(f"Prepared bundle verified against {selected['trust_tag']}'s RAUC CA: "
+              f"{info['compatible']} {info['version']}", flush=True)
+        register(work, selected, channel, bundle, uboot, hashes, pins, verify_only)
 
-        def check(current):
-            return check_offer(work, token, key, channel, current)
 
-        def validate(result):
-            validate_offer(
-                result,
-                version,
-                hashes[bundle.name],
-                bundle.stat().st_size,
-                hashes[uboot.name],
-                uboot.stat().st_size,
-            )
-
-        before = check("0.0.0")
-        if before.get("update_available") and before["update"]["version"] == version:
-            validate(before)
-            print("Matching release already live; skipping duplicate publication.")
-        else:
-            if check(version).get("update_available"):
-                raise ValueError(
-                    "A newer release is already offered; refusing an older publication"
-                )
-            run(
-                str(executable),
-                "publish",
-                "--bundle",
-                str(bundle),
-                "--uboot",
-                str(uboot),
-                "--board",
-                "lapis",
-                "--channel",
-                channel,
-                "--version",
-                version,
-                "--region",
-                REGION,
-                "--bucket",
-                "pamir-ota-bundles",
-                "--table",
-                "lapis-ota-releases",
-            )
-        validate(check("0.0.0"))
-        if check(version).get("update_available"):
-            raise ValueError("Installed release is still offered an update")
+def register(work, selected, channel, bundle, uboot, hashes, pins, verify_only):
+    executable = build_publisher(work, pins["linux-rockchip-bsp-tools"])
+    if verify_only:
         print(
-            "OTA_PUBLISH_VERIFIED "
-            + json.dumps(
-                {
-                    "board": "lapis",
-                    "channel": channel,
-                    "version": version,
-                    "bundle_sha256": hashes[bundle.name],
-                    "uboot_sha256": hashes[uboot.name],
-                }
-            )
+            "Artifacts, signature and publisher verified; no OTA publication requested."
         )
+        return
+    token_text = output(
+        "aws",
+        "secretsmanager",
+        "get-secret-value",
+        "--secret-id",
+        "lapis-ota/fleet-tokens",
+        "--query",
+        "SecretString",
+        "--output",
+        "text",
+    )
+    token = next(
+        line.strip() for line in reversed(token_text.splitlines()) if line.strip()
+    )
+    key = work / "manifest-key.der"
+    key.write_bytes(
+        base64.b64decode(
+            github_file(
+                "pamir-ai-pkgs/linux-rockchip-mkosi",
+                pins["linux-rockchip-mkosi"],
+                "mkosi.extra/etc/lapis-ota/manifest.p256.pub",
+            ).strip()
+        )
+    )
+    version = selected["version"]
+
+    def check(current):
+        return check_offer(work, token, key, channel, current)
+
+    def validate(result):
+        validate_offer(
+            result,
+            version,
+            hashes[bundle.name],
+            bundle.stat().st_size,
+            hashes[uboot.name],
+            uboot.stat().st_size,
+        )
+
+    before = check("0.0.0")
+    if before.get("update_available") and before["update"]["version"] == version:
+        validate(before)
+        print("Matching release already live; skipping duplicate publication.")
+    else:
+        if check(version).get("update_available"):
+            raise ValueError(
+                "A newer release is already offered; refusing an older publication"
+            )
+        run(
+            str(executable),
+            "publish",
+            "--bundle",
+            str(bundle),
+            "--uboot",
+            str(uboot),
+            "--board",
+            "lapis",
+            "--channel",
+            channel,
+            "--version",
+            version,
+            "--region",
+            REGION,
+            "--bucket",
+            "pamir-ota-bundles",
+            "--table",
+            "lapis-ota-releases",
+        )
+    validate(check("0.0.0"))
+    if check(version).get("update_available"):
+        raise ValueError("Installed release is still offered an update")
+    print(
+        "OTA_PUBLISH_VERIFIED "
+        + json.dumps(
+            {
+                "board": "lapis",
+                "channel": channel,
+                "version": version,
+                "bundle_sha256": hashes[bundle.name],
+                "uboot_sha256": hashes[uboot.name],
+            }
+        )
+    )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tag", required=True)
-    parser.add_argument(
-        "--build-id", required=True, help="Original GitHub run ID-attempt"
-    )
+    parser.add_argument("--tag")
+    parser.add_argument("--build-id", help="Original GitHub run ID-attempt")
     parser.add_argument("--channel", required=True, choices=["dev", "sit"])
     parser.add_argument("--verify-only", action="store_true")
+    parser.add_argument("--prepared-bundle", help="S3 URI of a prepared bundle under " + PREPARED_PREFIX)
+    parser.add_argument("--prepared-bundle-sha256")
+    parser.add_argument("--prepared-uboot-sha256")
+    parser.add_argument("--prepared-version")
+    parser.add_argument("--trust-tag", default="rk3576-v0.3.0",
+                        help="Release whose units receive the prepared bundle")
     args = parser.parse_args()
-    publish(args.tag, args.build_id, args.channel, args.verify_only)
+    if args.prepared_bundle:
+        publish_prepared(prepared_plan(args.prepared_bundle, args.prepared_bundle_sha256 or "",
+                                       args.prepared_uboot_sha256 or "", args.prepared_version or "",
+                                       args.channel, args.trust_tag),
+                         args.channel, args.verify_only)
+    else:
+        if not args.tag or not args.build_id:
+            parser.error("--tag and --build-id are required without --prepared-bundle")
+        publish(args.tag, args.build_id, args.channel, args.verify_only)
