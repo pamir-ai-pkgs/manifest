@@ -192,5 +192,12 @@ class PublishTests(unittest.TestCase):
             publisher.validate_bundle({"version": "v0.4.0", "compatible": "pamir-lapis-rk3576"}, p)
         publisher.validate_bundle({"version": "v0.4.0", "compatible": "pamir-lapis-rk3576-dev"}, p)
 
+    def test_unknown_version_check_omits_the_exact_version(self):
+        self.assertNotIn("current_version_full", publisher.check_query("dev", "0.0.0"))
+        self.assertIn("current_version=0.0.0", publisher.check_query("dev", "0.0.0"))
+        q = publisher.check_query("dev", "0.4.0-rc.1")
+        self.assertIn("current_version=0.4.0", q)
+        self.assertIn("current_version_full=0.4.0-rc.1", q)
+
 if __name__ == "__main__":
     unittest.main()
