@@ -206,16 +206,22 @@ def build_publisher(work, revision):
     return executable
 
 
+def check_query(channel, current):
+    params = {
+        "board": "lapis",
+        "channel": channel,
+        "current_version": current.split("-")[0],
+        "machine_id": "ci-dvt-ota-publish-verifier",
+    }
+    # "0.0.0" is the server's "unknown version, offer everything" value for
+    # current_version; as an exact version (current_version_full) it is refused.
+    if current != "0.0.0":
+        params["current_version_full"] = current
+    return urllib.parse.urlencode(params)
+
+
 def check_offer(work, token, public_key, channel, current):
-    query = urllib.parse.urlencode(
-        {
-            "board": "lapis",
-            "channel": channel,
-            "current_version": current.split("-")[0],
-            "current_version_full": current,
-            "machine_id": "ci-dvt-ota-publish-verifier",
-        }
-    )
+    query = check_query(channel, current)
     request = urllib.request.Request(
         CHECK_URL + "?" + query, headers={"Authorization": "LapisOTA-v1 " + token}
     )
