@@ -35,6 +35,16 @@ on:
         required: false
         type: string
         default: ""
+      legs:
+        description: "Images to build. A single leg rebuilds only that image's artifacts and leaves the GitHub release untouched"
+        required: false
+        type: choice
+        default: all
+        options:
+          - all
+          - prod
+          - sit
+          - dev
 
 permissions:
   contents: write
@@ -571,14 +581,14 @@ jobs:
       # published to an OTA channel here: releases go through lapis-ota-infra's
       # publisher.
       - name: Bootstrap production workspace BSP tools
-        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
+        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate') && contains(fromJSON('["all","prod"]'), inputs.legs || 'all')
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
         run: manifest-checkout/ci/bootstrap-workspace.sh "$PROD_SDK_DIR"
 
       - name: Stage signing keys into the production workspace
-        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
+        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate') && contains(fromJSON('["all","prod"]'), inputs.legs || 'all')
         shell: bash
         run: |
           if [ ! -s "$SDK_DIR/u-boot/keys/dev.pubkey" ] ||
@@ -592,7 +602,7 @@ jobs:
           cp -a "$SDK_DIR/u-boot/keys/." "$PROD_SDK_DIR/u-boot/keys/"
 
       - name: Build and upload production release
-        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
+        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate') && contains(fromJSON('["all","prod"]'), inputs.legs || 'all')
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
@@ -626,7 +636,7 @@ jobs:
       # Nightlies build it too, uploaded under nightly/<tag>-sec only and not
       # published to any OTA channel.
       - name: Bootstrap secure workspace BSP tools
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
+        if: (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly') && contains(fromJSON('["all","sit"]'), inputs.legs || 'all')
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
@@ -636,7 +646,7 @@ jobs:
           manifest-checkout/ci/bootstrap-workspace.sh "$SEC_SDK_DIR"
 
       - name: Stage signing keys into the secure workspace
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
+        if: (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly') && contains(fromJSON('["all","sit"]'), inputs.legs || 'all')
         shell: bash
         run: |
           # Reuse the OTP-verified key set staged above; cp -a keeps the
@@ -652,7 +662,7 @@ jobs:
           cp -a "$SDK_DIR/u-boot/keys/." "$SEC_SDK_DIR/u-boot/keys/"
 
       - name: Build and upload secure release
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
+        if: (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly') && contains(fromJSON('["all","sit"]'), inputs.legs || 'all')
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
@@ -705,6 +715,7 @@ jobs:
             bsp-tools/ci/build-and-upload-release.sh
 
       - name: Build and upload release
+        if: contains(fromJSON('["all","dev"]'), inputs.legs || 'all')
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
@@ -723,6 +734,7 @@ jobs:
             bsp-tools/ci/build-and-upload-release.sh
 
       - name: Publish GitHub release
+        if: (inputs.legs || 'all') == 'all'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -742,7 +754,7 @@ jobs:
           esac
 
       - name: Attach secure artifacts to the GitHub release
-        if: env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly'
+        if: (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate' || env.CHANNEL == 'nightly') && (inputs.legs || 'all') == 'all'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -760,7 +772,7 @@ jobs:
             bsp-tools/ci/publish-github-release.sh
 
       - name: Attach production artifacts to the GitHub release
-        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate')
+        if: env.BOARD_VARIANT == 'dvt' && (env.CHANNEL == 'stable' || env.CHANNEL == 'candidate') && (inputs.legs || 'all') == 'all'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
