@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Existing manifest tag (rk3576-vX.Y.Z or rk3576-vX.Y.Z-rc.N)
-        required: true
+        description: Existing manifest tag (rk3576-vX.Y.Z or rk3576-vX.Y.Z-rc.N); empty with a prepared bundle
+        required: false
         type: string
       build_id:
-        description: Original Actions run ID and attempt (RUN_ID-ATTEMPT)
-        required: true
+        description: Original Actions run ID and attempt (RUN_ID-ATTEMPT); empty with a prepared bundle
+        required: false
         type: string
       channel:
         description: dev uses DVT dev; sit uses DVT production (final versions only)
@@ -20,6 +20,27 @@ on:
         description: Verify artifacts, signatures and publisher without registering an OTA
         type: boolean
         default: true
+      prepared_bundle:
+        description: "Prepared bundle (dev only): S3 URI under s3://lapis-os-artifacts/pamir-rk3576/migration/, uboot.img beside it"
+        required: false
+        type: string
+      prepared_bundle_sha256:
+        description: Prepared bundle SHA-256
+        required: false
+        type: string
+      prepared_uboot_sha256:
+        description: Prepared uboot.img SHA-256
+        required: false
+        type: string
+      prepared_version:
+        description: Prepared bundle version (X.Y.Z), as in its manifest without the v
+        required: false
+        type: string
+      trust_tag:
+        description: Release whose units receive the prepared bundle (their RAUC CA, manifest key and publisher)
+        required: false
+        type: string
+        default: rk3576-v0.3.0
 
 permissions:
   contents: read
@@ -46,6 +67,11 @@ jobs:
           BUILD_ID: ${{ inputs.build_id }}
           OTA_CHANNEL: ${{ inputs.channel }}
           VERIFY_ONLY: ${{ inputs.verify_only }}
+          PREPARED_BUNDLE: ${{ inputs.prepared_bundle }}
+          PREPARED_BUNDLE_SHA256: ${{ inputs.prepared_bundle_sha256 }}
+          PREPARED_UBOOT_SHA256: ${{ inputs.prepared_uboot_sha256 }}
+          PREPARED_VERSION: ${{ inputs.prepared_version }}
+          TRUST_TAG: ${{ inputs.trust_tag }}
           GH_TOKEN: ${{ secrets.PAMIR_GITHUB_TOKEN }}
           GOPRIVATE: github.com/Pamir-AI/*,github.com/pamir-ai-pkgs/*
           GIT_CONFIG_COUNT: '2'
@@ -55,6 +81,12 @@ jobs:
           GIT_CONFIG_VALUE_1: '!gh auth git-credential'
         run: |
           export PATH="$PATH:/usr/sbin:/sbin"
-          args=(--tag "$RELEASE_TAG" --build-id "$BUILD_ID" --channel "$OTA_CHANNEL")
+          if [[ -n "$PREPARED_BUNDLE" ]]; then
+            args=(--channel "$OTA_CHANNEL" --prepared-bundle "$PREPARED_BUNDLE"
+              --prepared-bundle-sha256 "$PREPARED_BUNDLE_SHA256" --prepared-uboot-sha256 "$PREPARED_UBOOT_SHA256"
+              --prepared-version "$PREPARED_VERSION" --trust-tag "${TRUST_TAG:-rk3576-v0.3.0}")
+          else
+            args=(--tag "$RELEASE_TAG" --build-id "$BUILD_ID" --channel "$OTA_CHANNEL")
+          fi
           if [[ "$VERIFY_ONLY" == true ]]; then args+=(--verify-only); fi
           python3 ci/ota-publish.py "${args[@]}"

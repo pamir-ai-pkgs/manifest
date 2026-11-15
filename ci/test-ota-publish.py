@@ -171,5 +171,26 @@ class PublishTests(unittest.TestCase):
                 )
 
 
+    def test_prepared_bundle_is_dev_only_staged_and_hash_pinned(self):
+        h = "a" * 64
+        uri = publisher.PREPARED_PREFIX + "v0.4.0/lapis-dvt-sec-v0.4.0-devcompat-devsigned.raucb"
+        p = publisher.prepared_plan(uri, h, "b" * 64, "0.4.0", "dev", "rk3576-v0.3.0")
+        self.assertEqual(p["compatible"], "pamir-lapis-rk3576-dev")
+        self.assertEqual(p["uboot_uri"], publisher.PREPARED_PREFIX + "v0.4.0/uboot.img")
+        self.assertEqual(p["sha256"]["uboot.img"], "b" * 64)
+        for args in [
+            (uri, h, h, "0.4.0", "sit", "rk3576-v0.3.0"),
+            ("s3://lapis-os-artifacts/pamir-rk3576/releases/x.raucb", h, h, "0.4.0", "dev", "rk3576-v0.3.0"),
+            (publisher.PREPARED_PREFIX + "../releases/x.raucb", h, h, "0.4.0", "dev", "rk3576-v0.3.0"),
+            (uri, "short", h, "0.4.0", "dev", "rk3576-v0.3.0"),
+            (uri, h, h, "v0.4.0", "dev", "rk3576-v0.3.0"),
+            (uri, h, h, "0.4.0", "dev", "main"),
+        ]:
+            with self.assertRaises(ValueError):
+                publisher.prepared_plan(*args)
+        with self.assertRaises(ValueError):
+            publisher.validate_bundle({"version": "v0.4.0", "compatible": "pamir-lapis-rk3576"}, p)
+        publisher.validate_bundle({"version": "v0.4.0", "compatible": "pamir-lapis-rk3576-dev"}, p)
+
 if __name__ == "__main__":
     unittest.main()
